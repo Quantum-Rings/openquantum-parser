@@ -32,7 +32,24 @@ describe("lexer", () => {
             const qasm = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
             if (tokenSet[version] && tokenSet[version][scriptName]) {
-              const tokens = tokenSet[version][scriptName];
+              let tokens = tokenSet[version][scriptName];
+
+              if (version === "v3.0") {
+                const mergedTokens = [];
+                for (let i = 0; i < tokens.length; i++) {
+                  if (
+                    tokens[i][0] === Qasm3Token.Dollar &&
+                    i + 1 < tokens.length &&
+                    tokens[i + 1][0] === Qasm3Token.NNInteger
+                  ) {
+                    mergedTokens.push([Qasm3Token.HardwareQubit, tokens[i + 1][1]]);
+                    i++;
+                  } else {
+                    mergedTokens.push(tokens[i]);
+                  }
+                }
+                tokens = mergedTokens;
+              }
 
               let out: Array<[Qasm2Token | Qasm3Token, (string | number)?]>;
               switch (version) {

@@ -498,6 +498,13 @@ class Lexer {
       case "}":
         return [Token.RCParen];
       case "$":
+        if (/\d/.test(this.peek())) {
+          let num = "";
+          while (/\d/.test(this.peek())) {
+            num += this.readChar();
+          }
+          return [Token.HardwareQubit, parseInt(num)];
+        }
         return [Token.Dollar];
       case "#":
         if (

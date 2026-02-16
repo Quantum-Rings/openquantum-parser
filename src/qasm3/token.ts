@@ -239,6 +239,8 @@ enum Token {
   Extern,
   // 100; compound binary operators
   CompoundBinaryOp,
+  // 101; hardware qubit ($0, $1, etc)
+  HardwareQubit,
 }
 
 /**

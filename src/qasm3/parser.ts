@@ -460,6 +460,20 @@ class Parser {
         const [durationOfNOde, consumed] = this.durationOf(tokens);
         return [[durationOfNOde], consumed];
       }
+      case Token.Dollar:
+      case Token.HardwareQubit: {
+        const [node, consumed] = this.parseHardwareQubit(tokens);
+        if (this.matchNext(tokens.slice(consumed), [Token.Semicolon])) {
+          return [[node], consumed + 1];
+        }
+        throwParserError(
+          MissingSemicolonError,
+          tokens[consumed],
+          this.index + consumed,
+          "expected semicolon",
+        );
+        break;
+      }
       case Token.SizeOf: {
         const [sizeOfNode, consumed] = this.sizeOf(tokens);
         return [[sizeOfNode], consumed];
@@ -775,6 +789,9 @@ class Parser {
         return [new BitstringLiteral(token[1].toString()), consumed];
       case Token.DurationOf:
         return this.durationOf(tokens);
+      case Token.Dollar:
+      case Token.HardwareQubit:
+        return this.parseHardwareQubit(tokens);
       case Token.SizeOf:
         return this.sizeOf(tokens);
       case Token.UnaryOp: {
@@ -1072,7 +1089,7 @@ class Parser {
     // Legacy syntax: measure qubit|qubit[] -> bit|bit[];
     if (this.matchNext(tokens.slice(consumed), [Token.Measure])) {
       consumed++;
-      const qubitIdentifiers: (Identifier | SubscriptedIdentifier)[] = [];
+      const qubitIdentifiers: (Identifier | SubscriptedIdentifier | HardwareQubit)[] = [];
       while (
         !(
           this.matchNext(tokens.slice(consumed), [Token.Arrow]) ||
@@ -1082,7 +1099,7 @@ class Parser {
         const [identifier, idConsumed] = this.unaryExpression(
           tokens.slice(consumed),
         );
-        qubitIdentifiers.push(identifier as Identifier | SubscriptedIdentifier);
+        qubitIdentifiers.push(identifier as Identifier | SubscriptedIdentifier | HardwareQubit);
         consumed += idConsumed;
 
         if (this.matchNext(tokens.slice(consumed), [Token.Comma])) {
@@ -1173,7 +1190,8 @@ class Parser {
       );
       const qubitIdentifier = rightIdentifier as
         | Identifier
-        | SubscriptedIdentifier;
+        | SubscriptedIdentifier
+        | HardwareQubit;
       consumed += rightIdConsumed;
 
       if (!this.matchNext(tokens.slice(consumed), [Token.Semicolon])) {
@@ -1186,7 +1204,7 @@ class Parser {
       consumed++;
 
       const measurement = new QuantumMeasurement([
-        qubitIdentifier as Identifier,
+        qubitIdentifier as Identifier | HardwareQubit,
       ]);
       return [
         new QuantumMeasurementAssignment(
@@ -1550,6 +1568,7 @@ class Parser {
 
     while (!this.matchNext(tokens.slice(consumed), [Token.Semicolon])) {
       if (
+        this.matchNext(tokens.slice(consumed), [Token.HardwareQubit]) ||
         this.matchNext(tokens.slice(consumed), [Token.Dollar, Token.NNInteger])
       ) {
         const [hardwareQubit, hardwareQubitConsumed] = this.parseHardwareQubit(
@@ -1594,6 +1613,10 @@ class Parser {
     tokens: Array<[Token, (number | string)?]>,
   ): [HardwareQubit, number] {
     let consumed = 0;
+    if (this.matchNext(tokens, [Token.HardwareQubit])) {
+      return [new HardwareQubit(Number(tokens[0][1])), 1];
+    }
+
     if (!this.matchNext(tokens.slice(consumed), [Token.Dollar])) {
       throwParserError(
         BadGateError,
@@ -1847,20 +1870,26 @@ class Parser {
   ): [QuantumReset, number] {
     let consumed = 1;
 
-    if (!this.matchNext(tokens.slice(consumed), [Token.Id])) {
+    if (
+      !this.matchNext(tokens.slice(consumed), [Token.Id]) &&
+      !this.matchNext(tokens.slice(consumed), [Token.Dollar]) &&
+      !this.matchNext(tokens.slice(consumed), [Token.HardwareQubit])
+    ) {
       throwParserError(
         BadQuantumInstructionError,
         tokens[consumed],
         this.index + consumed,
-        "expected identifier after reset keyword",
+        "expected identifier or hardware qubit after reset keyword",
       );
     }
     const [idNode, idConsumed] = this.unaryExpression(tokens.slice(consumed));
     consumed += idConsumed;
 
-    let id: Identifier | SubscriptedIdentifier = null;
+    let id: Identifier | SubscriptedIdentifier | HardwareQubit = null;
     if (idNode instanceof SubscriptedIdentifier) {
       id = idNode as SubscriptedIdentifier;
+    } else if (idNode instanceof HardwareQubit) {
+      id = idNode as HardwareQubit;
     } else {
       id = idNode as Identifier;
     }

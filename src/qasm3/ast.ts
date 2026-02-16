@@ -555,8 +555,8 @@ class ArrayAccess extends Expression {
  *  : `measure` identifierList
  */
 class QuantumMeasurement extends AstNode {
-  identifierList: Array<Identifier>;
-  constructor(identifierList: Array<Identifier>) {
+  identifierList: Array<Identifier | HardwareQubit>;
+  constructor(identifierList: Array<Identifier | HardwareQubit>) {
     super();
     this.identifierList = identifierList;
   }
@@ -640,7 +640,7 @@ class QuantumDeclaration extends AstNode {
  *
  * $[NUM]
  */
-class HardwareQubit extends AstNode {
+class HardwareQubit extends Expression {
   number: number;
   constructor(number: number) {
     super();
@@ -721,8 +721,8 @@ class QuantumBarrier extends QuantumInstruction {
 
 /** Class representing a quantum reset instruction. */
 class QuantumReset extends QuantumInstruction {
-  identifier: Identifier;
-  constructor(identifier: Identifier) {
+  identifier: Identifier | HardwareQubit;
+  constructor(identifier: Identifier | HardwareQubit) {
     super();
     this.identifier = identifier;
   }
