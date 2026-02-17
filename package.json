@@ -3,9 +3,11 @@
   "version": "2.1.2",
   "description": "QASM, the low-level programming language for quantum circuit specification, implemented in TypeScript.",
   "main": "dist/main.js",
+  "type": "commonjs",
   "scripts": {
     "test": "ts-node node_modules/jasmine/bin/jasmine",
-    "docs": "typedoc --options docs/typedoc.json"
+    "docs": "typedoc --options docs/typedoc.json",
+    "build": "tsc --module commonjs"
   },
   "repository": {
     "type": "git",
@@ -26,16 +28,16 @@
   "homepage": "https://github.com/comp-phys-marc/qasm-ts#readme",
   "dependencies": {
     "path": "^0.12.7",
-    "ts-node": "^8.3.0"
+    "ts-node": "^10.9.2"
   },
   "devDependencies": {
-    "@types/jasmine": "^3.4.0",
-    "@types/node": "^12.7.2",
-    "@typescript-eslint/eslint-plugin": "^8.42.0",
-    "@typescript-eslint/parser": "^8.42.0",
-    "eslint": "^8.57.0",
-    "jasmine": "^3.4.0",
+    "@types/jasmine": "^5.1",
+    "@types/node": "^22",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
+    "eslint": "^9",
+    "jasmine": "^5.3.0",
     "typedoc": "^0.28.12",
-    "typescript": "^5.5.4"
+    "typescript": "^5"
   }
 }
