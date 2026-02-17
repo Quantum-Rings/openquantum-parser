@@ -78,7 +78,7 @@ function isLetter(c: string, matchCase?: "upper" | "lower"): boolean {
     case "lower":
       return /^[a-z]$/.test(c);
     default:
-      return /^[A-Za-z]$/.test(c);
+      return /^[A-Za-z_]$/.test(c);
   }
 }
 
