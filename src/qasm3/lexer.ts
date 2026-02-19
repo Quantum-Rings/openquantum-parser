@@ -39,6 +39,7 @@ import { Token, lookup } from "./token";
 import {
   MissingSemicolonError,
   UnsupportedOpenQASMVersionError,
+  BadStringLiteralError,
   ReturnErrorConstructor,
 } from "../errors";
 
@@ -51,9 +52,11 @@ import {
 function throwLexerError(
   error: ReturnErrorConstructor,
   line: number,
+  column: number,
   code: string,
+  message?: string,
 ) {
-  throw new error(`Line ${line}: ${code}`);
+  throw new error(message || "Lexer error", line, column, code);
 }
 
 /**
@@ -198,15 +201,17 @@ class Lexer {
    * Calling this method lexes the code represented by the provided string.
    * @return An array of tokens and their corresponding values.
    */
-  lex = (): Array<[Token, (number | string)?]> => {
-    const tokens: Array<[Token, (number | string)?]> = [];
-    let token: [Token, (number | string)?];
+  lex = (): Array<[Token, (number | string) | undefined, number, number, string]> => {
+    const tokens: Array<[Token, (number | string) | undefined, number, number, string]> = [];
+    let token: [Token, (number | string) | undefined, number, number, string];
     const verifyInputResult = this.verifyInput();
     if (!verifyInputResult[0]) {
       throwLexerError(
         MissingSemicolonError,
         verifyInputResult[1],
+        0,
         verifyInputResult[2],
+        "Missing semicolon",
       );
     }
     while (this.cursor < this.input.length) {
@@ -315,9 +320,19 @@ class Lexer {
   readStringLiteral = (terminator: string): string => {
     let lit = "";
     let char = "";
-    while (!(terminator == char)) {
+    while (true) {
+      if (this.cursor >= this.input.length) {
+        throwLexerError(
+          BadStringLiteralError,
+          this.getLineNumber(this.cursor),
+          this.getColumnNumber(this.cursor),
+          this.getCurrentLine(this.cursor),
+          "Unterminated string literal",
+        );
+      }
       char = this.readChar();
       lit += char;
+      if (char === terminator) break;
     }
     return lit;
   };
@@ -333,54 +348,78 @@ class Lexer {
   };
 
   /**
+   * Returns the column number where the current cursor is located.
+   * @param cursor - The current cursor position in the input string.
+   * @return The column number.
+   */
+  getColumnNumber = (cursor: number): number => {
+    const lastNewline = this.input.lastIndexOf("\n", cursor - 1);
+    return cursor - lastNewline;
+  };
+
+  /**
    * Lexes the next token.
    * @return The next token and its corresponding value.
    */
-  nextToken = (): [Token, (number | string)?] => {
+  nextToken = (): [Token, (number | string) | undefined, number, number, string] => {
     this.skipWhitespace();
+    const startCursor = this.cursor;
+    const line = this.getLineNumber(startCursor);
+    const col = this.getColumnNumber(startCursor);
+    const lineText = this.getCurrentLine(startCursor);
 
     if (this.cursor == this.input.length) {
-      return [Token.EndOfFile];
+      return [Token.EndOfFile, undefined, line, col, lineText];
     }
 
     const char = this.peek();
     this.readChar();
 
+    let result: [Token, (number | string)?];
+
     switch (char) {
       case "π":
-        return [Token.Pi];
+        result = [Token.Pi];
+        break;
       case "ℇ":
-        return [Token.Euler];
+        result = [Token.Euler];
+        break;
       case "τ":
-        return [Token.Tau];
+        result = [Token.Tau];
+        break;
       case "@":
-        return [Token.At];
+        result = [Token.At];
+        break;
       case "θ":
-        return this.readKeywordOrIdentifier(char);
+        result = this.readKeywordOrIdentifier(char);
+        break;
       case "!":
         if (this.peekEq("=")) {
           this.readChar();
-          return [Token.BinaryOp, "!="];
+          result = [Token.BinaryOp, "!="];
         } else {
-          return [Token.UnaryOp, "!"];
+          result = [Token.UnaryOp, "!"];
         }
+        break;
       case "~":
-        return [Token.UnaryOp, "~"];
+        result = [Token.UnaryOp, "~"];
+        break;
       case "*":
         if (this.peekEq("*")) {
           this.readChar();
           if (this.peekEq("=")) {
             this.readChar();
-            return [Token.CompoundArithmeticOp, "**="];
+            result = [Token.CompoundArithmeticOp, "**="];
           } else {
-            return [Token.ArithmeticOp, "**"];
+            result = [Token.ArithmeticOp, "**"];
           }
         } else if (this.peekEq("=")) {
           this.readChar();
-          return [Token.CompoundArithmeticOp, "*="];
+          result = [Token.CompoundArithmeticOp, "*="];
         } else {
-          return [Token.ArithmeticOp, "*"];
+          result = [Token.ArithmeticOp, "*"];
         }
+        break;
       case "/":
         if (this.peekEq("/")) {
           this.skipComment();
@@ -390,122 +429,146 @@ class Lexer {
           return;
         } else if (this.peekEq("=")) {
           this.readChar();
-          return [Token.CompoundArithmeticOp, "/="];
+          result = [Token.CompoundArithmeticOp, "/="];
         } else {
-          return [Token.ArithmeticOp, "/"];
+          result = [Token.ArithmeticOp, "/"];
         }
+        break;
       case "%":
         if (this.peekEq("=")) {
           this.readChar();
-          return [Token.CompoundArithmeticOp, "%="];
+          result = [Token.CompoundArithmeticOp, "%="];
         } else {
-          return [Token.ArithmeticOp, "%"];
+          result = [Token.ArithmeticOp, "%"];
         }
+        break;
       case "+":
         if (this.peekEq("=")) {
           this.readChar();
-          return [Token.CompoundArithmeticOp, "+="];
+          result = [Token.CompoundArithmeticOp, "+="];
         } else if (this.peekEq("+")) {
           this.readChar();
-          return [Token.ArithmeticOp, "++"];
+          result = [Token.ArithmeticOp, "++"];
+        } else {
+          result = [Token.ArithmeticOp, "+"];
         }
-        return [Token.ArithmeticOp, "+"];
+        break;
       case "-": {
         if (this.peekEq(">")) {
           this.readChar();
-          return [Token.Arrow];
+          result = [Token.Arrow];
         } else if (this.peekEq("=")) {
           this.readChar();
-          return [Token.CompoundArithmeticOp, "-="];
+          result = [Token.CompoundArithmeticOp, "-="];
+        } else {
+          result = [Token.UnaryOp, "-"];
         }
-        return [Token.UnaryOp, "-"];
+        break;
       }
       case "&":
         if (this.peekEq("&")) {
           this.readChar();
-          return [Token.BinaryOp, "&&"];
+          result = [Token.BinaryOp, "&&"];
         } else {
-          return [Token.BinaryOp, "&"];
+          result = [Token.BinaryOp, "&"];
         }
+        break;
       case "|":
         if (this.peekEq("|")) {
           this.readChar();
-          return [Token.BinaryOp, "||"];
+          result = [Token.BinaryOp, "||"];
         } else {
-          return [Token.BinaryOp, "|"];
+          result = [Token.BinaryOp, "|"];
         }
+        break;
       case "^":
         if (this.peekEq("=")) {
           this.readChar();
-          return [Token.CompoundBinaryOp, "^="];
+          result = [Token.CompoundBinaryOp, "^="];
+        } else {
+          result = [Token.BinaryOp, "^"];
         }
-        return [Token.BinaryOp, "^"];
+        break;
       case "<":
         if (this.peekEq("=")) {
           this.readChar();
-          return [Token.BinaryOp, "<="];
+          result = [Token.BinaryOp, "<="];
         } else if (
           this.input[this.cursor] == "<" &&
           this.input[this.cursor + 1] == "="
         ) {
           this.readChar(2);
-          return [Token.CompoundBinaryOp, "<<="];
+          result = [Token.CompoundBinaryOp, "<<="];
         } else if (this.peekEq("<")) {
           this.readChar();
-          return [Token.BinaryOp, "<<"];
+          result = [Token.BinaryOp, "<<"];
         } else {
-          return [Token.BinaryOp, "<"];
+          result = [Token.BinaryOp, "<"];
         }
+        break;
       case ">":
         if (this.peekEq("=")) {
           this.readChar();
-          return [Token.BinaryOp, ">="];
+          result = [Token.BinaryOp, ">="];
         } else if (
           this.input[this.cursor] == ">" &&
           this.input[this.cursor + 1] == "="
         ) {
           this.readChar(2);
-          return [Token.CompoundBinaryOp, ">>="];
+          result = [Token.CompoundBinaryOp, ">>="];
         } else if (this.peekEq(">")) {
           this.readChar();
-          return [Token.BinaryOp, ">>"];
+          result = [Token.BinaryOp, ">>"];
         } else {
-          return [Token.BinaryOp, ">"];
+          result = [Token.BinaryOp, ">"];
         }
+        break;
       case "=":
         if (this.peekEq("=")) {
           this.readChar();
-          return [Token.BinaryOp, "=="];
+          result = [Token.BinaryOp, "=="];
         } else {
-          return [Token.EqualsAssmt];
+          result = [Token.EqualsAssmt];
         }
+        break;
       case ";":
-        return [Token.Semicolon];
+        result = [Token.Semicolon];
+        break;
       case ",":
-        return [Token.Comma];
+        result = [Token.Comma];
+        break;
       case ":":
-        return [Token.Colon];
+        result = [Token.Colon];
+        break;
       case "(":
-        return [Token.LParen];
+        result = [Token.LParen];
+        break;
       case "[":
-        return [Token.LSParen];
+        result = [Token.LSParen];
+        break;
       case "{":
-        return [Token.LCParen];
+        result = [Token.LCParen];
+        break;
       case ")":
-        return [Token.RParen];
+        result = [Token.RParen];
+        break;
       case "]":
-        return [Token.RSParen];
+        result = [Token.RSParen];
+        break;
       case "}":
-        return [Token.RCParen];
+        result = [Token.RCParen];
+        break;
       case "$":
         if (/\d/.test(this.peek())) {
           let num = "";
           while (/\d/.test(this.peek())) {
             num += this.readChar();
           }
-          return [Token.HardwareQubit, parseInt(num)];
+          result = [Token.HardwareQubit, parseInt(num)];
+        } else {
+          result = [Token.Dollar];
         }
-        return [Token.Dollar];
+        break;
       case "#":
         if (
           this.input[this.cursor] == "d" &&
@@ -513,9 +576,11 @@ class Lexer {
           this.input[this.cursor + 2] == "m"
         ) {
           this.readChar(3);
-          return [Token.Dim];
+          result = [Token.Dim];
+        } else {
+          result = this.readKeywordOrIdentifier(char);
         }
-        return this.readKeywordOrIdentifier(char);
+        break;
       case "c":
         if (
           this.input[this.cursor] == "t" &&
@@ -523,9 +588,11 @@ class Lexer {
           this.input[this.cursor + 2] == "l"
         ) {
           this.readChar(3);
-          return this.lexGateModifier("ctrl");
+          result = this.lexGateModifier("ctrl");
+        } else {
+          result = this.readKeywordOrIdentifier(char);
         }
-        return this.readKeywordOrIdentifier(char);
+        break;
       case "n":
         if (
           this.input[this.cursor] == "e" &&
@@ -536,18 +603,22 @@ class Lexer {
           this.input[this.cursor + 5] == "l"
         ) {
           this.readChar(6);
-          return this.lexGateModifier("negctrl");
+          result = this.lexGateModifier("negctrl");
+        } else {
+          result = this.readKeywordOrIdentifier(char);
         }
-        return this.readKeywordOrIdentifier(char);
+        break;
       case "i":
         if (
           this.input[this.cursor] == "n" &&
           this.input[this.cursor + 1] == "v"
         ) {
           this.readChar(2);
-          return this.lexGateModifier("inv");
+          result = this.lexGateModifier("inv");
+        } else {
+          result = this.readKeywordOrIdentifier(char);
         }
-        return this.readKeywordOrIdentifier(char);
+        break;
       case "p":
         if (
           this.input[this.cursor] == "o" &&
@@ -555,33 +626,35 @@ class Lexer {
           !isLetter(this.input[this.cursor + 2])
         ) {
           this.readChar(2);
-          return this.lexGateModifier("pow");
+          result = this.lexGateModifier("pow");
+        } else {
+          result = this.readKeywordOrIdentifier(char);
         }
-        return this.readKeywordOrIdentifier(char);
+        break;
       case "0":
         if (this.peekEq("b") || this.peekEq("B")) {
           const char = this.readChar(1);
           const binaryLit = this.readIdentifier();
-          return [Token.BinaryLiteral, `0${char}${binaryLit}`];
+          result = [Token.BinaryLiteral, `0${char}${binaryLit}`];
         } else if (this.peekEq("o") || this.peekEq("O")) {
           const char = this.readChar(1);
           const octalLit = this.readIdentifier();
-          return [Token.OctalLiteral, `0${char}${octalLit}`];
+          result = [Token.OctalLiteral, `0${char}${octalLit}`];
         } else if (this.peekEq("x") || this.peekEq("X")) {
           const char = this.readChar(1);
           const hexLit = this.readIdentifier();
-          return [Token.HexLiteral, `0${char}${hexLit}`];
+          result = [Token.HexLiteral, `0${char}${hexLit}`];
         } else {
           const num = char + this.readNumeric();
           if (num.indexOf(".") != -1) {
-            return [Token.Real, parseFloat(num)];
+            result = [Token.Real, parseFloat(num)];
           } else if (num.indexOf("_") != -1) {
-            return [Token.Integer, num];
+            result = [Token.Integer, num];
           } else {
-            return [Token.NNInteger, parseInt(num)];
+            result = [Token.NNInteger, parseInt(num)];
           }
         }
-        return this.readKeywordOrIdentifier(char);
+        break;
       case "O":
         if (
           this.input[this.cursor].toLowerCase() == "p" &&
@@ -632,37 +705,47 @@ class Lexer {
           if (major !== 3) {
             throw new UnsupportedOpenQASMVersionError(
               `Unsupported OpenQASM version detected: ${majorVersion}.${minor ?? 0}`,
+              this.getLineNumber(this.cursor),
+              this.getColumnNumber(this.cursor),
+              this.getCurrentLine(this.cursor),
             );
           }
 
-          return [Token.OpenQASM];
+          result = [Token.OpenQASM];
+        } else {
+          result = this.readKeywordOrIdentifier(char);
         }
-        return this.readKeywordOrIdentifier(char);
+        break;
       case '"': {
         const stringLiteral = char + this.readStringLiteral('"');
-        return [Token.String, stringLiteral];
+        result = [Token.String, stringLiteral];
+        break;
       }
       case "’": {
         const singleStringLiteral = char + this.readStringLiteral("’");
-        return [Token.String, singleStringLiteral];
+        result = [Token.String, singleStringLiteral];
+        break;
       }
       default:
         if (isLetter(char)) {
-          return this.readKeywordOrIdentifier(char);
+          result = this.readKeywordOrIdentifier(char);
         } else if (isNumeric(char)) {
           const num = char + this.readNumeric();
           if (num.indexOf("e") != -1) {
-            return [Token.ScientificNotation, num];
+            result = [Token.ScientificNotation, num];
           } else if (num.indexOf(".") != -1) {
-            return [Token.Real, parseFloat(num)];
+            result = [Token.Real, parseFloat(num)];
           } else if (num.indexOf("_") != -1) {
-            return [Token.Integer, num];
+            result = [Token.Integer, num];
           } else {
-            return [Token.NNInteger, parseInt(num)];
+            result = [Token.NNInteger, parseInt(num)];
           }
         } else {
-          return [Token.Illegal];
+          result = [Token.Illegal];
         }
+    }
+    if (result) {
+      return [result[0], result[1], line, col, lineText];
     }
   };
 

@@ -43,6 +43,7 @@ import {
   BadParameterError,
   BadIncludeError,
   UnsupportedOpenQASMVersionError,
+  MissingBraceError,
 } from "../errors";
 import {
   AstNode,
@@ -95,7 +96,7 @@ import {
  */
 class Parser {
   /** The tokens to parse. */
-  tokens: Array<[Token, (number | string)?]>;
+  tokens: Array<[Token, (number | string) | undefined, number, number, string]>;
 
   /** The allowed gates. */
   gates: Array<string>;
@@ -104,7 +105,7 @@ class Parser {
    * Creates a parser.
    * @param tokens - Tokens to parse.
    */
-  constructor(tokens: Array<[Token, (number | string)?]>) {
+  constructor(tokens: Array<[Token, (number | string) | undefined, number, number, string]>) {
     this.tokens = tokens;
     this.gates = [
       "x",
@@ -139,10 +140,13 @@ class Parser {
     while (i < this.tokens.length - 1) {
       const nodes = this.parseNode(this.tokens.slice(i));
       ast = ast.concat(nodes ? nodes : []);
-      while (!this.matchNext(this.tokens.slice(i), [Token.Semicolon])) {
+      while (i < this.tokens.length && !this.matchNext(this.tokens.slice(i), [Token.Semicolon])) {
         if (this.matchNext(this.tokens.slice(i), [Token.LCParen])) {
-          while (!this.matchNext(this.tokens.slice(i), [Token.RCParen])) {
+          while (i < this.tokens.length && !this.matchNext(this.tokens.slice(i), [Token.RCParen])) {
             i++;
+          }
+          if (i >= this.tokens.length) {
+            throw new MissingBraceError("Missing closing brace", this.tokens[this.tokens.length - 1][2], this.tokens[this.tokens.length - 1][3], this.tokens[this.tokens.length - 1][4]);
           }
           break;
         }
@@ -161,7 +165,7 @@ class Parser {
   * @return A set of AST nodes.
   */
   parseNode(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
     allowVariables = false,
   ): Array<AstNode> {
     const token = tokens[0];
@@ -188,7 +192,7 @@ class Parser {
           } else if (allowVariables) {
             return [new Variable(token[1].toString())];
           } else {
-            throw BadGateError;
+            throw new BadGateError("Bad gate", token[2], token[3], token[4]);
           }
         } else {
           return [];
@@ -237,7 +241,7 @@ class Parser {
    * @return Whether these is a match.
    */
   matchNext(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
     expectedTokens: Array<Token>,
   ): boolean {
     let matches = true;
@@ -260,7 +264,7 @@ class Parser {
    * @param tokens - Remaining tokens to parse.
    * @return An AST node representing the quantum register.
    */
-  qreg(tokens: Array<[Token, (number | string)?]>): AstNode {
+  qreg(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): AstNode {
     if (
       this.matchNext(tokens, [
         Token.Id,
@@ -272,12 +276,12 @@ class Parser {
     ) {
       const id = tokens[0][1].toString();
       if (!this.validateIdentifier(id)) {
-        throw BadQregError;
+        throw new BadQregError("Bad qreg", tokens[0][2], tokens[0][3], tokens[0][4]);
       }
       const size = tokens[2][1];
       return new QReg(id.toString(), Number(size));
     } else {
-      throw BadQregError;
+      throw new BadQregError("Bad qreg", tokens[0][2], tokens[0][3], tokens[0][4]);
     }
   }
 
@@ -286,7 +290,7 @@ class Parser {
    * @param tokens - Remaining tokens to parse.
    * @return An AST node representing the classical register.
    */
-  creg(tokens: Array<[Token, (number | string)?]>): AstNode {
+  creg(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): AstNode {
     if (
       this.matchNext(tokens, [
         Token.Id,
@@ -298,12 +302,12 @@ class Parser {
     ) {
       const id = tokens[0][1].toString();
       if (!this.validateIdentifier(id)) {
-        throw BadCregError;
+        throw new BadCregError("Bad creg", tokens[0][2], tokens[0][3], tokens[0][4]);
       }
       const size = tokens[2][1];
       return new CReg(id.toString(), Number(size));
     } else {
-      throw BadCregError;
+      throw new BadCregError("Bad creg", tokens[0][2], tokens[0][3], tokens[0][4]);
     }
   }
 
@@ -312,7 +316,7 @@ class Parser {
    * @param tokens - Remaining tokens to parse.
    * @return An AST node representing the conditional.
    */
-  conditional(tokens: Array<[Token, (number | string)?]>): AstNode {
+  conditional(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): AstNode {
     if (
       this.matchNext(tokens, [
         Token.LParen,
@@ -327,7 +331,7 @@ class Parser {
       const node = this.parseNode(tokens.slice(5));
       return new If(id.toString(), Number(val), node);
     } else {
-      throw BadConditionalError;
+      throw new BadConditionalError("Bad conditional", tokens[0][2], tokens[0][3], tokens[0][4]);
     }
   }
 
@@ -336,7 +340,7 @@ class Parser {
    * @param tokens - Remaining tokens to parse.
    * @return An AST node representing the barrier.
    */
-  barrier(tokens: Array<[Token, (number | string)?]>): AstNode {
+  barrier(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): AstNode {
     if (this.matchNext(tokens, [Token.Id, Token.Semicolon])) {
       const id = tokens[0][1];
       return new Barrier(id.toString());
@@ -353,7 +357,7 @@ class Parser {
       const index = tokens[2][1];
       return new Barrier(id.toString(), Number(index));
     } else {
-      throw BadBarrierError;
+      throw new BadBarrierError("Bad barrier", tokens[0][2], tokens[0][3], tokens[0][4]);
     }
   }
 
@@ -362,7 +366,7 @@ class Parser {
    * @param tokens - Remaining tokens to parse.
    * @return An AST node representing the measurement.
    */
-  measure(tokens: Array<[Token, (number | string)?]>): AstNode {
+  measure(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): AstNode {
     let first_id: string;
     let second_id: string;
     let first_index: number;
@@ -383,7 +387,7 @@ class Parser {
       first_index = Number(tokens[2][1]);
       tokens = tokens.slice(5);
     } else {
-      throw BadMeasurementError;
+      throw new BadMeasurementError("Bad measurement", tokens[0][2], tokens[0][3], tokens[0][4]);
     }
     if (this.matchNext(tokens, [Token.Id, Token.Semicolon])) {
       second_id = tokens[0][1].toString();
@@ -401,7 +405,7 @@ class Parser {
       second_index = Number(tokens[2][1]);
       tokens = tokens.slice(5);
     } else {
-      throw BadMeasurementError;
+      throw new BadMeasurementError("Bad measurement", tokens[0][2], tokens[0][3], tokens[0][4]);
     }
     if (first_index != undefined && second_index != undefined) {
       return new Measure(first_id, second_id, first_index, second_index);
@@ -419,7 +423,7 @@ class Parser {
    * @return An AST node representing the gate application.
    */
   application(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
     op: string,
   ): Array<AstNode> {
     let params: Array<AstNode> = [];
@@ -459,7 +463,7 @@ class Parser {
    * @param tokens - Expression tokens to parse.
    * @return A parsed subroutine.
    */
-  sub(tokens: Array<[Token, (number | string)?]>): Array<AstNode> {
+  sub(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): Array<AstNode> {
     let ast: Array<AstNode> = [];
     let i = 0;
     if (this.matchNext(tokens.slice(i), [Token.LCParen])) {
@@ -487,12 +491,12 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return An AST node representing the parameter value.
    */
-  matchParam(tokens: Array<[Token, (number | string)?]>): AstNode {
+  matchParam(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): AstNode {
     let param: AstNode;
     if (!notParam(tokens[0][0])) {
       param = this.parseNode([tokens[0]], true);
     } else {
-      throw BadParameterError;
+      throw new BadParameterError("Bad parameter", tokens[0][2], tokens[0][3], tokens[0][4]);
     }
     return param;
   }
@@ -503,7 +507,7 @@ class Parser {
    * @return An array of AST nodes representing the parameter values.
    */
   matchParamList(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): Array<Array<AstNode>> {
     const args: Array<Array<AstNode>> = [];
     let i: number = 0;
@@ -515,7 +519,7 @@ class Parser {
         !this.matchNext(tokens.slice(j), [Token.RParen])
       ) {
         if (notParam(tokens[j][0])) {
-          throw BadParameterError;
+          throw new BadParameterError("Bad parameter", tokens[j][2], tokens[j][3], tokens[j][4]);
         }
         const next = this.matchParam(tokens.slice(j));
         args[i].push(next);
@@ -536,7 +540,7 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return An AST node representing the argument value.
    */
-  matchArg(tokens: Array<[Token, (number | string)?]>): number {
+  matchArg(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): number {
     let index: number;
     if (this.matchNext(tokens, [Token.LSParen])) {
       tokens = tokens.slice(1);
@@ -544,12 +548,12 @@ class Parser {
         index = Number(tokens[0][1]);
         tokens = tokens.slice(1);
       } else {
-        throw BadArgumentError;
+        throw new BadArgumentError("Bad argument", tokens[0][2], tokens[0][3], tokens[0][4]);
       }
       if (this.matchNext(tokens, [Token.RSParen])) {
         return index;
       } else {
-        throw BadArgumentError;
+        throw new BadArgumentError("Bad argument", tokens[0][2], tokens[0][3], tokens[0][4]);
       }
     }
   }
@@ -560,7 +564,7 @@ class Parser {
    * @return An array of AST nodes representing the argument values.
    */
   matchArgList(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): Array<[string, number?]> {
     const args: Array<[string, number?]> = [];
     let next: [string, number?];
@@ -584,7 +588,7 @@ class Parser {
           j++;
         }
       } else {
-        throw BadArgumentError;
+        throw new BadArgumentError("Bad argument", tokens[j][2], tokens[j][3], tokens[j][4]);
       }
     }
     return args;
@@ -595,13 +599,13 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return An Include node representing the include statement.
    */
-  include(tokens: Array<[Token, (number | string)?]>): Include {
+  include(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): Include {
     let filename: string;
     if (this.matchNext(tokens, [Token.String, Token.Semicolon])) {
       filename = tokens[0][1].toString();
       return new Include(filename);
     }
-    throw BadIncludeError;
+    throw new BadIncludeError("Bad include", tokens[0][2], tokens[0][3], tokens[0][4]);
   }
 
   /**
@@ -609,12 +613,12 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return A Version node representing the version statement.
    */
-  versionHeader(tokens: Array<[Token, (number | string)?]>): Version {
+  versionHeader(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): Version {
     let version: OpenQASMVersion;
     if (this.matchNext(tokens, [Token.NNInteger, Token.Semicolon])) {
       version = new OpenQASMVersion(Number(tokens[0][1]));
       if (!version.isVersion2()) {
-        throw UnsupportedOpenQASMVersionError;
+        throw new UnsupportedOpenQASMVersionError("Unsupported version", tokens[0][2], tokens[0][3], tokens[0][4]);
       }
       return new Version(version);
     } else if (this.matchNext(tokens, [Token.Real, Token.Semicolon])) {
@@ -624,11 +628,11 @@ class Parser {
         Number(versionSplits[1]),
       );
       if (!version.isVersion2()) {
-        throw UnsupportedOpenQASMVersionError;
+        throw new UnsupportedOpenQASMVersionError("Unsupported version", tokens[0][2], tokens[0][3], tokens[0][4]);
       }
       return new Version(version);
     }
-    throw UnsupportedOpenQASMVersionError;
+    throw new UnsupportedOpenQASMVersionError("Unsupported version", tokens[0][2], tokens[0][3], tokens[0][4]);
   }
 
   /**
@@ -636,7 +640,7 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return An array of AST nodes representing the identifiers.
    */
-  matchIdList(tokens: Array<[Token, (number | string)?]>): Array<string> {
+  matchIdList(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): Array<string> {
     let args: Array<string> = [];
     let head: string;
     if (this.matchNext(tokens, [Token.Id])) {
@@ -657,16 +661,16 @@ class Parser {
    * @param tokens - Remaining tokens to parse.
    * @return An AST node representing the gate.
    */
-  gate(tokens: Array<[Token, (number | string)?]>): AstNode {
+  gate(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): AstNode {
     let name: string;
     let params: Array<string>;
     if (this.matchNext(tokens, [Token.Id])) {
       name = tokens[0][1].toString();
       if (!this.validateIdentifier(name)) {
-        throw BadGateError;
+        throw new BadGateError("Bad gate", tokens[0][2], tokens[0][3], tokens[0][4]);
       }
     } else {
-      throw BadGateError;
+      throw new BadGateError("Bad gate", tokens[0][2], tokens[0][3], tokens[0][4]);
     }
     tokens = tokens.slice(1);
     if (this.matchNext(tokens, [Token.LParen])) {
@@ -693,7 +697,7 @@ class Parser {
    * @param tokens - Remaining tokens to parse.
    * @return An AST node representing the opaque declaration.
    */
-  opaque(tokens: Array<[Token, (number | string)?]>): AstNode {
+  opaque(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): AstNode {
     let name: string;
     let params: Array<string>;
     let qubits: Array<[string, number?]> = [];
@@ -701,7 +705,7 @@ class Parser {
       name = tokens[0][1].toString();
       tokens = tokens.slice(1);
     } else {
-      throw BadGateError;
+      throw new BadGateError("Bad gate", tokens[0][2], tokens[0][3], tokens[0][4]);
     }
 
     if (this.matchNext(tokens, [Token.LParen])) {
@@ -718,7 +722,7 @@ class Parser {
     tokens = tokens.slice(qubits.length * 2);
 
     if (!this.matchNext(tokens, [Token.Semicolon])) {
-      throw BadGateError;
+      throw new BadGateError("Bad gate", tokens[0][2], tokens[0][3], tokens[0][4]);
     }
 
     return new Opaque(name, qubits, params);

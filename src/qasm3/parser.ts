@@ -144,14 +144,15 @@ import {
  */
 function throwParserError(
   error: ReturnErrorConstructor,
-  token: Token | [Token, (string | number)?],
+  token: Token | [Token, (string | number) | undefined, number, number, string],
   index: number,
   message?: string,
 ) {
-  const errorMessage = message
-    ? `index: ${index} at token [${token}], ${message}`
-    : `index: ${index} at token [${token}]`;
-  throw new error(errorMessage);
+  if (Array.isArray(token)) {
+    throw new error(message, token[2], token[3], token[4]);
+  } else {
+    throw new error(message);
+  }
 }
 
 /**
@@ -179,7 +180,7 @@ function throwParserError(
  */
 class Parser {
   /** The tokens to parse. */
-  tokens: Array<[Token, (number | string)?]>;
+  tokens: Array<[Token, (number | string) | undefined, number, number, string]>;
 
   /** The built in gates. */
   gates: Set<string>;
@@ -215,7 +216,7 @@ class Parser {
    * @param machineIntSize - Optional default int size override.
    */
   constructor(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
     defaultFloatWidth?: number,
     machineIntSize?: number,
   ) {
@@ -314,7 +315,7 @@ class Parser {
   * @return A set of AST nodes and the number of consumed tokens.
   */
   parseNode(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
     allowVariables = true,
   ): [Array<AstNode>, number] {
     const token = tokens[0];
@@ -556,7 +557,7 @@ class Parser {
    * @return Whether these is a match.
    */
   matchNext(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
     expectedTokens: Array<Token>,
   ): boolean {
     let matches = true;
@@ -584,7 +585,7 @@ class Parser {
    * @return The parsed CalibrationGrammarDeclaration AstNode node and the number of consumed tokens.
    */
   defcalGrammarDeclaration(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [CalibrationGrammarDeclaration, number] {
     const consumed = 1;
     if (
@@ -610,7 +611,7 @@ class Parser {
    * @return The parsed ClassicalDeclaration AstNode and the number of consumed tokens.
    */
   classicalDeclaration(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
     isConst?: boolean,
   ): [ClassicalDeclaration, number] {
     const isConstParam = isConst ? isConst : false;
@@ -657,7 +658,7 @@ class Parser {
    * @param tokens - Remaining tokens to parse.
    * @return A tuple containing the parsed IODeclaration and the number of tokens consumed.
    */
-  ioType(tokens: Array<[Token, (number | string)?]>): [IODeclaration, number] {
+  ioType(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): [IODeclaration, number] {
     let consumed = 0;
     let modifier: IOModifier;
     switch (tokens[consumed][0]) {
@@ -689,7 +690,7 @@ class Parser {
    * @return A tuple containing the parsed Expression and the number of tokens consumed.
    */
   unaryExpression(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [Expression, number] {
     const token = tokens[0];
     let consumed = 1;
@@ -844,7 +845,7 @@ class Parser {
    * @return A tuple containing the parsed Expression and the number of tokens consumed.
    */
   binaryExpression(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [Expression, number] {
     const unaryExpr = this.unaryExpression(tokens);
     let leftExpr = unaryExpr[0];
@@ -889,7 +890,7 @@ class Parser {
    * @return The parsed AssignmentStatement AstNode and the number of consumed tokens.
    */
   assignment(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [AssignmentStatement, number] {
     let consumed = 0;
     const [lhs, lhsConsumed] = this.unaryExpression(tokens);
@@ -992,7 +993,7 @@ class Parser {
    * @return A QuantumDeclaration node and the number of tokens consumed.
    */
   quantumDeclaration(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [QuantumDeclaration, number] {
     let consumed = 1;
     const isQubit = tokens[0][0] === Token.Qubit;
@@ -1082,7 +1083,7 @@ class Parser {
    * @return A tuple containing the QuantumMeasurementAssignment or QuantumMeasurement and the number of tokens consumed.
    */
   measureStatement(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [QuantumMeasurementAssignment | QuantumMeasurement, number] {
     let consumed = 0;
 
@@ -1222,7 +1223,7 @@ class Parser {
    * @return A tuple containing the SubroutineDefinition and the number of tokens consumed.
    */
   returnStatement(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [ReturnStatement, number] {
     let consumed = 1;
     let expression: Expression | null = null;
@@ -1242,7 +1243,7 @@ class Parser {
    * @return A tuple containing the ExternSignature and the number of tokens consumed.
    */
   externSignature(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [ExternSignature, number] {
     let consumed = 1;
     if (!this.matchNext(tokens.slice(consumed), [Token.Id])) {
@@ -1299,7 +1300,7 @@ class Parser {
    * @return A tuple containing the SubroutineDefinition and the number of tokens consumed.
    */
   subroutineDefinition(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [SubroutineDefinition, number] {
     let consumed = 1;
 
@@ -1365,7 +1366,7 @@ class Parser {
    * @return A tuple containing the SubroutineCall and the number of tokens consumed.
    */
   subroutineCall(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [SubroutineCall, number] {
     let consumed = 0;
     if (!this.matchNext(tokens.slice(consumed), [Token.Id])) {
@@ -1414,7 +1415,7 @@ class Parser {
    * @return A tuple containing the QuantumGateDefinition and the number of tokens consumed.
    */
   quantumGateDefinition(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [QuantumGateDefinition, number] {
     let consumed = 1;
 
@@ -1484,7 +1485,7 @@ class Parser {
    * @return A tuple containing the QuantumGateCall and the number of tokens consumed.
    */
   quantumGateCall(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [QuantumGateCall, number] {
     let consumed = 0;
     const modifiers: Array<QuantumGateModifier> = [];
@@ -1560,7 +1561,7 @@ class Parser {
    * @return A tuple containing the list of qubits and the number of tokens consumed.
    */
   parseQubitList(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [Array<Identifier | SubscriptedIdentifier | HardwareQubit>, number] {
     let consumed = 0;
     const qubits: Array<Identifier | SubscriptedIdentifier | HardwareQubit> =
@@ -1610,7 +1611,7 @@ class Parser {
    * @return A tuple containing the HardwareQubit and the number of tokens consumed.
    */
   parseHardwareQubit(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [HardwareQubit, number] {
     let consumed = 0;
     if (this.matchNext(tokens, [Token.HardwareQubit])) {
@@ -1643,7 +1644,7 @@ class Parser {
    * @return A tuple containing the gate modifier and the number of tokens consumed.
    */
   parseQuantumGateModifier(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [QuantumGateModifier, number] {
     let consumed = 1;
     const modifierToken = tokens[0][0];
@@ -1708,7 +1709,7 @@ class Parser {
    * @return A tuple containing the Parameters and the number of tokens consumed.
    */
   parseParameters(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [Parameters, number] {
     let consumed = 0;
     const args: Array<Expression> = [];
@@ -1777,7 +1778,7 @@ class Parser {
    * @return A tuple containing the ArrayReference and the number of tokens consumed.
    */
   parseArrayReference(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [ArrayReference, number] {
     let consumed = 0;
     let modifier: ArrayReferenceModifier;
@@ -1812,7 +1813,7 @@ class Parser {
    * @return A tuple containing the AliasStatement and the number of tokens consumed.
    */
   aliasStatement(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [AliasStatement, number] {
     let consumed = 1;
 
@@ -1866,7 +1867,7 @@ class Parser {
    * @return A tuple containing the QuantumReset and the number of tokens consumed.
    */
   resetStatement(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [QuantumReset, number] {
     let consumed = 1;
 
@@ -1904,7 +1905,7 @@ class Parser {
    * @return A tuple containing the parsed Expression or Range and the number of tokens consumed.
    */
   parseSubscript(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [Expression | Range | IndexSet, number] {
     let consumed = 1;
     let start: Expression | null = null;
@@ -2012,7 +2013,7 @@ class Parser {
    * @return A tuple containing the parsed Cast Expression and the number of tokens consumed.
    */
   parseTypeCast(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [Expression, number] {
     let consumed = 1;
     let widthExpr: Expression | null = null;
@@ -2066,7 +2067,7 @@ class Parser {
    * @return A BranchingStatement node representing the if statement and the number of tokens consumed.
    */
   ifStatement(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [BranchingStatement, number] {
     let consumed = 1;
     if (!this.matchNext(tokens.slice(consumed), [Token.LParen])) {
@@ -2118,7 +2119,7 @@ class Parser {
    * @return A ForLoopStatement node and the number of tokens consumed.
    */
   forLoopStatement(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [ForLoopStatement, number] {
     let consumed = 1;
 
@@ -2181,7 +2182,7 @@ class Parser {
    * @return A ForLoopStatement node and the number of tokens consumed.
    */
   whileLoopStatement(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [WhileLoopStatement, number] {
     let consumed = 1;
 
@@ -2222,7 +2223,7 @@ class Parser {
    * @return An QuantumBarrier node and the number of tokens consumed.
    */
   barrier(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [QuantumBarrier, number] {
     let consumed = 1;
     const [qubits, qubitsConsumed] = this.parseQubitList(
@@ -2237,7 +2238,7 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return An BoxDefinition node and the number of tokens consumed.
    */
-  box(tokens: Array<[Token, (number | string)?]>): [BoxDefinition, number] {
+  box(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): [BoxDefinition, number] {
     let consumed = 1;
     let designator: Expression | null = null;
 
@@ -2271,7 +2272,7 @@ class Parser {
    * @return An ArrayDeclaration node and the number of tokens consumed.
    */
   arrayDeclaration(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [ArrayDeclaration, number] {
     let consumed = 1;
     if (!this.matchNext(tokens.slice(consumed), [Token.LSParen])) {
@@ -2363,7 +2364,7 @@ class Parser {
    * @return An ArrayInitializer node and the number of tokens consumed.
    */
   parseArrayInitializer(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [ArrayInitializer | Expression, number] {
     let consumed = 0;
     if (!this.matchNext(tokens, [Token.LCParen])) {
@@ -2413,7 +2414,7 @@ class Parser {
    * @return An ArrayAccess  node and the number of tokens consumed.
    */
   parseArrayAccess(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [ArrayAccess, number] {
     let consumed = 0;
     if (!this.matchNext(tokens.slice(consumed), [Token.Id])) {
@@ -2490,7 +2491,7 @@ class Parser {
    * @return A SwitchStatement node and the number of tokens consumed.
    */
   switchStatement(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [SwitchStatement, number] {
     let consumed = 1;
 
@@ -2582,7 +2583,7 @@ class Parser {
    * @return A CaseStatement node and the number of tokens consumed.
    */
   parseCaseStatement(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [CaseStatement, number] {
     let consumed = 1;
     const labels: Array<Expression> = [];
@@ -2618,7 +2619,7 @@ class Parser {
    * @return A DefaultStatement node and the number of tokens consumed.
    */
   parseDefaultStatement(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [DefaultStatement, number] {
     let consumed = 1;
 
@@ -2642,7 +2643,7 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return A QuantumDelay node and the number of tokens consumed.
    */
-  delay(tokens: Array<[Token, (number | string)?]>): [QuantumDelay, number] {
+  delay(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): [QuantumDelay, number] {
     let consumed = 1;
 
     if (!this.matchNext(tokens.slice(consumed), [Token.LSParen])) {
@@ -2692,7 +2693,7 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return A DurationOf node and the number of tokens consumed.
    */
-  durationOf(tokens: Array<[Token, (number | string)?]>): [DurationOf, number] {
+  durationOf(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): [DurationOf, number] {
     let consumed = 1;
 
     if (!this.matchNext(tokens.slice(consumed), [Token.LParen])) {
@@ -2738,7 +2739,7 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return A SizeOf node and the number of tokens consumed.
    */
-  sizeOf(tokens: Array<[Token, (number | string)?]>): [SizeOf, number] {
+  sizeOf(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): [SizeOf, number] {
     let consumed = 1;
     let dimensions: Expression | null = null;
     if (!this.matchNext(tokens.slice(consumed), [Token.LParen])) {
@@ -2782,7 +2783,7 @@ class Parser {
    * @return A ProgramBlock node and the number of tokens consumed.
    */
   programBlock(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [ProgramBlock, number] {
     const statements: (Statement | Expression)[] = [];
     let consumed = 0;
@@ -2839,7 +2840,7 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return An Include node representing the include statement and the number of consumed tokens.
    */
-  include(tokens: Array<[Token, (number | string)?]>): [Include, number] {
+  include(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): [Include, number] {
     let filename: string;
     const consumed = 1;
     if (
@@ -2861,7 +2862,7 @@ class Parser {
    * @param tokens - Tokens to parse.
    * @return A Version node representing the version statement and the number of consumed tokens.
    */
-  versionHeader(tokens: Array<[Token, (number | string)?]>): [Version, number] {
+  versionHeader(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): [Version, number] {
     let version: OpenQASMVersion;
     let consumed = 1;
     const slicedTokens = tokens.slice(consumed);
@@ -2908,7 +2909,7 @@ class Parser {
    * @return The ClassicalType and the number of consumed tokens.
    */
   parseClassicalType(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [ClassicalType, number] {
     let typeToken = tokens[0][0];
     let consumed = 1;
@@ -2968,7 +2969,7 @@ class Parser {
    * @return The resulting Identifier, IndexSet, or Range node and the number of consumed tokens.
    */
   parseSetDeclaration(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [Expression | IndexSet | Range, number] {
     if (this.matchNext(tokens, [Token.Id])) {
       const [identifier, identifierConsumed] = this.unaryExpression(tokens);
@@ -2988,7 +2989,7 @@ class Parser {
    * @return The resulting Identifier, IndexSet, or Range node and the number of consumed tokens.
    */
   parseIndexSet(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): [IndexSet, number] {
     let consumed = 1;
     const values: Expression[] = [];
@@ -3109,7 +3110,7 @@ class Parser {
   }
 
   /** Checks whether a Bit token precedes a measurement statement. */
-  private isMeasurement(tokens: Array<[Token, (number | string)?]>): boolean {
+  private isMeasurement(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): boolean {
     let i = 0;
     while (
       i < tokens.length - 1 &&
@@ -3125,7 +3126,7 @@ class Parser {
   }
 
   /** Checks whether the statement is part of an assignment. */
-  private isAssignment(tokens: Array<[Token, (number | string)?]>): boolean {
+  private isAssignment(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): boolean {
     let i = 0;
     while (
       i < tokens.length - 1 &&
@@ -3140,7 +3141,7 @@ class Parser {
 
   /** Checks whether an identifier is a quantum gate call. */
   private isQuantumGateCall(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): boolean {
     const gateName = tokens[0][1] as string;
     return (
@@ -3152,22 +3153,22 @@ class Parser {
 
   /** Checks whether an identifier is a subroutine call. */
   private isSubroutineCall(
-    tokens: Array<[Token, (number | string)?]>,
+    tokens: Array<[Token, (number | string) | undefined, number, number, string]>,
   ): boolean {
     const subroutineName = tokens[0][1] as string;
     return this.subroutines.has(subroutineName);
   }
 
   /** Checks whether a number is imaginary. */
-  private isImaginary(token: [Token, (number | string)?]): boolean {
-    if (token.length !== 2) {
+  private isImaginary(token: [Token, (number | string) | undefined, number, number, string]): boolean {
+    if (token[1] === undefined) {
       return false;
     }
     return token[1].toString() === "im";
   }
 
   /** Checks whether an identifier is an array. */
-  private isArray(tokens: Array<[Token, (number | string)?]>): boolean {
+  private isArray(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): boolean {
     if (tokens[0][0] !== Token.Id) {
       return false;
     }
@@ -3176,9 +3177,9 @@ class Parser {
   }
 
   /** Checks whether an identifier represents a duration literal unit. */
-  private isDuration(tokens: Array<[Token, (number | string)?]>): boolean {
+  private isDuration(tokens: Array<[Token, (number | string) | undefined, number, number, string]>): boolean {
     const checkToken = tokens[0];
-    if (checkToken.length !== 2 || checkToken[0] !== Token.Id) {
+    if (checkToken[1] === undefined || checkToken[0] !== Token.Id) {
       return false;
     }
     if (

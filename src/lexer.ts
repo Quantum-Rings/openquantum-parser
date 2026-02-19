@@ -84,7 +84,7 @@ export function lex(
   qasm: string,
   cursor?: number,
   version?: OpenQASMVersion | OpenQASMMajorVersion | number,
-): Array<[Qasm2Token | Qasm3Token, (number | string)?]> {
+): Array<[Qasm2Token | Qasm3Token, (number | string) | undefined, number, number, string]> {
   let lexer: Qasm2Lexer | Qasm3Lexer;
   if (version instanceof OpenQASMVersion) {
     switch (version.major) {

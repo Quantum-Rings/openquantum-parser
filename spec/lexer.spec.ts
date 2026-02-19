@@ -51,7 +51,15 @@ describe("lexer", () => {
                 tokens = mergedTokens;
               }
 
-              let out: Array<[Qasm2Token | Qasm3Token, (string | number)?]>;
+              let out: Array<
+                [
+                  Qasm2Token | Qasm3Token,
+                  (string | number) | undefined,
+                  number,
+                  number,
+                  string,
+                ]
+              >;
               switch (version) {
                 case "v2.0":
                   out = lex(qasm, 0, 2);
@@ -87,12 +95,7 @@ describe("lexer", () => {
                   continue;
                 }
 
-                for (let j = 0; j < out[i].length; j++) {
-                  if (tokens[i][j] === undefined) {
-                    console.error(`tokens[${i}][${j}] is undefined`);
-                    continue;
-                  }
-
+                for (let j = 0; j < tokens[i].length; j++) {
                   expect(out[i][j]).toEqual(tokens[i][j]);
                 }
               }

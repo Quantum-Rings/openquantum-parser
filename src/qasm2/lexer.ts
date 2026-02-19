@@ -34,6 +34,7 @@ import {
   BadEqualsError,
   MissingSemicolonError,
   UnsupportedOpenQASMVersionError,
+  BadStringLiteralError,
   ReturnErrorConstructor,
 } from "../errors";
 
@@ -46,9 +47,11 @@ import {
 function throwLexerError(
   error: ReturnErrorConstructor,
   line: number,
+  column: number,
   code: string,
+  message?: string,
 ) {
-  throw new error(`Line ${line}: ${code}`);
+  throw new error(message || "Lexer error", line, column, code);
 }
 
 /**
@@ -176,15 +179,17 @@ class Lexer {
    * Calling this method lexes the code represented by the provided string.
    * @return An array of tokens and their corresponding values.
    */
-  lex = (): Array<[Token, (number | string)?]> => {
-    const tokens: Array<[Token, (number | string)?]> = [];
-    let token: [Token, (number | string)?];
+  lex = (): Array<[Token, (number | string) | undefined, number, number, string]> => {
+    const tokens: Array<[Token, (number | string) | undefined, number, number, string]> = [];
+    let token: [Token, (number | string) | undefined, number, number, string];
     const verifyInputResult = this.verifyInput();
     if (!verifyInputResult[0]) {
       throwLexerError(
         MissingSemicolonError,
         verifyInputResult[1],
+        0,
         verifyInputResult[2],
+        "Missing semicolon",
       );
     }
     while (this.cursor < this.input.length) {
@@ -262,9 +267,19 @@ class Lexer {
   readStringLiteral = (terminator: string): string => {
     let lit = "";
     let char = "";
-    while (!(terminator == char)) {
+    while (true) {
+      if (this.cursor >= this.input.length) {
+        throwLexerError(
+          BadStringLiteralError,
+          this.getLineNumber(this.cursor),
+          this.getColumnNumber(this.cursor),
+          this.getCurrentLine(this.cursor),
+          "Unterminated string literal",
+        );
+      }
       char = this.readChar();
       lit += char;
+      if (char === terminator) break;
     }
     return lit;
   };
@@ -280,68 +295,100 @@ class Lexer {
   };
 
   /**
+   * Returns the column number where the current cursor is located.
+   * @param cursor - The current cursor position in the input string.
+   * @return The column number.
+   */
+  getColumnNumber = (cursor: number): number => {
+    const lastNewline = this.input.lastIndexOf("\n", cursor - 1);
+    return cursor - lastNewline;
+  };
+
+  /**
    * Lexes the next token.
    * @return The next token and its corresponding value.
    */
-  nextToken = (): [Token, (number | string)?] => {
+  nextToken = (): [Token, (number | string) | undefined, number, number, string] => {
     this.skipWhitespace();
+    const startCursor = this.cursor;
+    const line = this.getLineNumber(startCursor);
+    const col = this.getColumnNumber(startCursor);
+    const lineText = this.getCurrentLine(startCursor);
 
     if (this.cursor == this.input.length) {
-      return [Token.EndOfFile];
+      return [Token.EndOfFile, undefined, line, col, lineText];
     }
 
     const char = this.peek();
     this.readChar();
 
+    let result: [Token, (number | string)?];
+
     switch (char) {
       case "=":
         if (this.peekEq("=")) {
           this.readChar();
-          return [Token.Equals];
+          result = [Token.Equals];
         } else {
           throwLexerError(
             BadEqualsError,
             this.getLineNumber(this.cursor),
+            this.getColumnNumber(this.cursor),
             this.getCurrentLine(this.cursor),
+            "Unexpected token. Expected '=='",
           );
           break;
         }
+        break;
       case "-":
         if (this.peekEq(">")) {
           this.readChar();
-          return [Token.Arrow];
+          result = [Token.Arrow];
         } else {
-          return [Token.Minus];
+          result = [Token.Minus];
         }
+        break;
       case "+":
-        return [Token.Plus];
+        result = [Token.Plus];
+        break;
       case "*":
-        return [Token.Times];
+        result = [Token.Times];
+        break;
       case "^":
-        return [Token.Power];
+        result = [Token.Power];
+        break;
       case ";":
-        return [Token.Semicolon];
+        result = [Token.Semicolon];
+        break;
       case ",":
-        return [Token.Comma];
+        result = [Token.Comma];
+        break;
       case "(":
-        return [Token.LParen];
+        result = [Token.LParen];
+        break;
       case "[":
-        return [Token.LSParen];
+        result = [Token.LSParen];
+        break;
       case "{":
-        return [Token.LCParen];
+        result = [Token.LCParen];
+        break;
       case ")":
-        return [Token.RParen];
+        result = [Token.RParen];
+        break;
       case "]":
-        return [Token.RSParen];
+        result = [Token.RSParen];
+        break;
       case "}":
-        return [Token.RCParen];
+        result = [Token.RCParen];
+        break;
       case "/":
         if (this.peekEq("/")) {
           this.skipComment();
           return;
         } else {
-          return [Token.Divide];
+          result = [Token.Divide];
         }
+        break;
       case "g":
         if (
           this.input[this.cursor] == "a" &&
@@ -349,12 +396,12 @@ class Lexer {
           this.input[this.cursor + 2] == "e"
         ) {
           this.readChar(3);
-          return [Token.Gate];
-        }
-        {
+          result = [Token.Gate];
+        } else {
           const literal = char + this.readIdentifier();
-          return [lookup(literal), literal];
+          result = [lookup(literal), literal];
         }
+        break;
       case "q":
         if (
           this.input[this.cursor] == "r" &&
@@ -362,12 +409,12 @@ class Lexer {
           this.input[this.cursor + 2] == "g"
         ) {
           this.readChar(3);
-          return [Token.QReg];
-        }
-        {
+          result = [Token.QReg];
+        } else {
           const qregLit = char + this.readIdentifier();
-          return [lookup(qregLit), qregLit];
+          result = [lookup(qregLit), qregLit];
         }
+        break;
       case "c":
         if (
           this.input[this.cursor] == "r" &&
@@ -375,12 +422,12 @@ class Lexer {
           this.input[this.cursor + 2] == "g"
         ) {
           this.readChar(3);
-          return [Token.CReg];
-        }
-        {
+          result = [Token.CReg];
+        } else {
           const cregLit = char + this.readIdentifier();
-          return [lookup(cregLit), cregLit];
+          result = [lookup(cregLit), cregLit];
         }
+        break;
       case "b":
         if (
           this.input[this.cursor] == "a" &&
@@ -391,12 +438,12 @@ class Lexer {
           this.input[this.cursor + 5] == "r"
         ) {
           this.readChar(6);
-          return [Token.Barrier];
-        }
-        {
+          result = [Token.Barrier];
+        } else {
           const barLit = char + this.readIdentifier();
-          return [lookup(barLit), barLit];
+          result = [lookup(barLit), barLit];
         }
+        break;
       case "m":
         if (
           this.input[this.cursor] == "e" &&
@@ -407,12 +454,12 @@ class Lexer {
           this.input[this.cursor + 5] == "e"
         ) {
           this.readChar(6);
-          return [Token.Measure];
-        }
-        {
+          result = [Token.Measure];
+        } else {
           const measureLit = char + this.readIdentifier();
-          return [lookup(measureLit), measureLit];
+          result = [lookup(measureLit), measureLit];
         }
+        break;
       case "O":
         if (
           this.input[this.cursor].toLowerCase() == "p" &&
@@ -463,15 +510,18 @@ class Lexer {
           if (major !== 2) {
             throw new UnsupportedOpenQASMVersionError(
               `Unsupported OpenQASM version detected: ${majorVersion}.${minor ?? 0}`,
+              this.getLineNumber(this.cursor),
+              this.getColumnNumber(this.cursor),
+              this.getCurrentLine(this.cursor),
             );
           }
 
-          return [Token.OpenQASM];
-        }
-        {
+          result = [Token.OpenQASM];
+        } else {
           const openQasmLit = char + this.readIdentifier();
-          return [lookup[openQasmLit], openQasmLit];
+          result = [lookup[openQasmLit], openQasmLit];
         }
+        break;
       case "i":
         if (
           this.input[this.cursor] == "n" &&
@@ -482,12 +532,12 @@ class Lexer {
           this.input[this.cursor + 5] == "e"
         ) {
           this.readChar(6);
-          return [Token.Include];
-        }
-        {
+          result = [Token.Include];
+        } else {
           const includeLit = char + this.readIdentifier();
-          return [lookup(includeLit), includeLit];
+          result = [lookup(includeLit), includeLit];
         }
+        break;
       case "o":
         if (
           this.input[this.cursor] == "p" &&
@@ -497,34 +547,39 @@ class Lexer {
           this.input[this.cursor + 4] == "e"
         ) {
           this.readChar(5);
-          return [Token.Opaque];
-        }
-        {
+          result = [Token.Opaque];
+        } else {
           const opaqueLit = char + this.readIdentifier();
-          return [lookup(opaqueLit), opaqueLit];
+          result = [lookup(opaqueLit), opaqueLit];
         }
+        break;
       case '"': {
         const stringLiteral = char + this.readStringLiteral('"');
-        return [Token.String, stringLiteral];
+        result = [Token.String, stringLiteral];
+        break;
       }
       case "’": {
         const singleStringLiteral = char + this.readStringLiteral("’");
-        return [Token.String, singleStringLiteral];
+        result = [Token.String, singleStringLiteral];
+        break;
       }
       default:
         if (isLetter(char)) {
           const literal = char + this.readIdentifier();
-          return [lookup(literal), literal];
+          result = [lookup(literal), literal];
         } else if (isNumeric(char)) {
           const num = char + this.readNumeric();
           if (num.indexOf(".") != -1) {
-            return [Token.Real, parseFloat(num)];
+            result = [Token.Real, parseFloat(num)];
           } else {
-            return [Token.NNInteger, parseFloat(num)];
+            result = [Token.NNInteger, parseFloat(num)];
           }
         } else {
-          return [Token.Illegal];
+          result = [Token.Illegal];
         }
+    }
+    if (result) {
+      return [result[0], result[1], line, col, lineText];
     }
   };
 

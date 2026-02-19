@@ -78,21 +78,21 @@ import { UnsupportedOpenQASMVersionError } from "./errors";
  * ```
  */
 export function parse(
-  tokens: Array<[Qasm2Token | Qasm3Token, (number | string)?]>,
+  tokens: Array<[Qasm2Token | Qasm3Token, (number | string) | undefined, number, number, string]>,
   version?: OpenQASMVersion | OpenQASMMajorVersion | number,
 ) {
   let parser: Qasm2Parser | Qasm3Parser;
   let castTokens:
-    | Array<[Qasm2Token, (number | string)?]>
-    | Array<[Qasm3Token, (number | string)?]>;
+    | Array<[Qasm2Token, (number | string) | undefined, number, number, string]>
+    | Array<[Qasm3Token, (number | string) | undefined, number, number, string]>;
   if (version instanceof OpenQASMVersion) {
     switch (version.major) {
       case OpenQASMMajorVersion.Version2:
-        castTokens = tokens as Array<[Qasm2Token, (number | string)?]>;
+        castTokens = tokens as Array<[Qasm2Token, (number | string) | undefined, number, number, string]>;
         parser = new Qasm2Parser(castTokens);
         break;
       case OpenQASMMajorVersion.Version3:
-        castTokens = tokens as Array<[Qasm2Token, (number | string)?]>;
+        castTokens = tokens as Array<[Qasm2Token, (number | string) | undefined, number, number, string]>;
         parser = new Qasm2Parser(castTokens);
         break;
       default:
@@ -103,11 +103,11 @@ export function parse(
   } else if (typeof version === "number") {
     switch (version) {
       case 2:
-        castTokens = tokens as Array<[Qasm2Token, (number | string)?]>;
+        castTokens = tokens as Array<[Qasm2Token, (number | string) | undefined, number, number, string]>;
         parser = new Qasm2Parser(castTokens);
         break;
       case 3:
-        castTokens = tokens as Array<[Qasm3Token, (number | string)?]>;
+        castTokens = tokens as Array<[Qasm3Token, (number | string) | undefined, number, number, string]>;
         parser = new Qasm3Parser(castTokens);
         break;
       default:
@@ -116,13 +116,13 @@ export function parse(
         );
     }
   } else if (version === OpenQASMMajorVersion.Version2) {
-    castTokens = tokens as Array<[Qasm2Token, (number | string)?]>;
+    castTokens = tokens as Array<[Qasm2Token, (number | string) | undefined, number, number, string]>;
     parser = new Qasm2Parser(castTokens);
   } else if (version === OpenQASMMajorVersion.Version3) {
-    castTokens = tokens as Array<[Qasm3Token, (number | string)?]>;
+    castTokens = tokens as Array<[Qasm3Token, (number | string) | undefined, number, number, string]>;
     parser = new Qasm3Parser(castTokens);
   } else {
-    castTokens = tokens as Array<[Qasm3Token, (number | string)?]>;
+    castTokens = tokens as Array<[Qasm3Token, (number | string) | undefined, number, number, string]>;
     parser = new Qasm3Parser(castTokens);
   }
   const ast = parser.parse();
