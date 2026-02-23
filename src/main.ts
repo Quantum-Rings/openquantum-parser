@@ -68,6 +68,14 @@ export function parseString(
   stringify?: boolean,
 ) {
   let ast: any;
+  if (version === undefined) {
+    const versionMatch = qasm.match(/^\s*OPENQASM\s+(\d+)/m);
+    if (versionMatch) {
+      version = parseInt(versionMatch[1], 10);
+    } else {
+      version = 3;
+    }
+  }
   const tokens = lex(qasm, undefined, version);
   ast = parse(tokens, version);
   if (verbose === true) {
