@@ -145,6 +145,11 @@ class Lexer {
   input: string;
   /** The lexer's current cursor location. */
   cursor: number;
+  /** Cached lines from input. */
+  private lines: string[];
+  /** Starting indices of each line. */
+  private lineStartIndices: number[];
+
   /**
    * Creates a lexer.
    * @param input - The string to lex.
@@ -153,6 +158,13 @@ class Lexer {
   constructor(input: string, cursor: number = 0) {
     this.input = input;
     this.cursor = cursor;
+    this.lines = this.input.split(/\n|\r(?!\n)|\u2028|\u2029|\r\n/);
+    this.lineStartIndices = [0];
+    const regex = /\n|\r(?!\n)|\u2028|\u2029|\r\n/g;
+    let match;
+    while ((match = regex.exec(this.input)) !== null) {
+      this.lineStartIndices.push(match.index + match[0].length);
+    }
   }
 
   /**
@@ -160,16 +172,16 @@ class Lexer {
    * @return A tuple of the status and if False, returns the problematic line.
    */
   verifyInput = (): [boolean, number | null, string | null] => {
-    const lines = this.input.split(/\n|\r(?!\n)|\u2028|\u2029|\r\n/g);
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < this.lines.length; i++) {
+      const line = this.lines[i];
       if (
-        !lines[i].startsWith("//") &&
-        !(lines[i].length == 0) &&
-        !lines[i].includes("gate") &&
-        !(lines[i].trim() == "{" || lines[i].trim() == "}") &&
-        !lines[i].includes(";")
+        !line.startsWith("//") &&
+        !(line.length == 0) &&
+        !line.includes("gate") &&
+        !(line.trim() == "{" || line.trim() == "}") &&
+        !line.includes(";")
       ) {
-        return [false, i + 1, lines[i]];
+        return [false, i + 1, line];
       }
     }
     return [true, null, null];
@@ -300,8 +312,9 @@ class Lexer {
    * @return The column number.
    */
   getColumnNumber = (cursor: number): number => {
-    const lastNewline = this.input.lastIndexOf("\n", cursor - 1);
-    return cursor - lastNewline;
+    const lineIndex = this.getLineNumber(cursor) - 1;
+    const lineStart = this.lineStartIndices[lineIndex];
+    return cursor - lineStart + 1;
   };
 
   /**
@@ -312,8 +325,10 @@ class Lexer {
     this.skipWhitespace();
     const startCursor = this.cursor;
     const line = this.getLineNumber(startCursor);
-    const col = this.getColumnNumber(startCursor);
-    const lineText = this.getCurrentLine(startCursor);
+    const lineIndex = line - 1;
+    const lineStart = this.lineStartIndices[lineIndex];
+    const col = startCursor - lineStart + 1;
+    const lineText = this.lines[lineIndex];
 
     if (this.cursor == this.input.length) {
       return [Token.EndOfFile, undefined, line, col, lineText];
@@ -589,9 +604,18 @@ class Lexer {
    * @return The line number.
    */
   getLineNumber = (cursor: number): number => {
-    return this.input
-      .substring(0, cursor)
-      .split(/\n|\r(?!\n)|\u2028|\u2029|\r\n/).length;
+    let low = 0;
+    let high = this.lineStartIndices.length - 1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (this.lineStartIndices[mid] <= cursor) {
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return low;
   };
 
   /**
@@ -600,9 +624,8 @@ class Lexer {
    * @return The specific line where the cursor is located.
    */
   getCurrentLine = (cursor: number): string => {
-    const lines = this.input.split(/\n|\r(?!\n)|\u2028|\u2029|\r\n/);
     const lineNumber = this.getLineNumber(cursor);
-    return lines[lineNumber - 1];
+    return this.lines[lineNumber - 1];
   };
 }
 export default Lexer;

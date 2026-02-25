@@ -130,11 +130,11 @@ class Measure extends AstNode {
 class ApplyGate extends AstNode {
   name: string;
   qubits: Array<[string, number?]>;
-  params: Array<AstNode>;
+  params: Array<any>;
   constructor(
     name: string,
     qubits: Array<[string, number?]>,
-    params: Array<AstNode>,
+    params: Array<any>,
   ) {
     super();
     this.name = name;
