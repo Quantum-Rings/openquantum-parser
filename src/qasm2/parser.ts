@@ -343,24 +343,17 @@ class Parser {
    * @return An AST node representing the barrier.
    */
   barrier(offset: number): AstNode {
-    if (this.matchNext(offset, [Token.Id, Token.Semicolon])) {
-      const id = this.tokens[offset][1];
-      return new Barrier(id.toString());
-    } else if (
-      this.matchNext(offset, [
-        Token.Id,
-        Token.LParen,
-        Token.NNInteger,
-        Token.RParen,
-        Token.Semicolon,
-      ])
-    ) {
-      const id = this.tokens[offset][1];
-      const index = this.tokens[offset + 2][1];
-      return new Barrier(id.toString(), Number(index));
-    } else {
-      throw new BadBarrierError("Bad barrier", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
+    try {
+      const [args, consumed] = this.matchArgList(offset);
+      if (args.length > 0 && this.matchNext(offset + consumed, [Token.Semicolon])) {
+        return new Barrier(args);
+      }
+    } catch (e) {
+      if (e instanceof BadArgumentError) {
+        throw e;
+      }
     }
+    throw new BadBarrierError("Bad barrier", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
   }
 
   /**
@@ -588,6 +581,9 @@ class Parser {
         }
         if (this.matchNext(j, [Token.Comma])) {
           j++;
+          if (this.matchNext(j, [Token.Semicolon])) {
+            throw new BadArgumentError("Trailing comma not allowed", this.tokens[j][2], this.tokens[j][3], this.tokens[j][4]);
+          }
         }
       } else {
         throw new BadArgumentError("Bad argument", this.tokens[j][2], this.tokens[j][3], this.tokens[j][4]);

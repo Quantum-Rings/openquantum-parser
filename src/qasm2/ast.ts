@@ -88,12 +88,10 @@ class Id extends AstNode {
 
 /** Class representing a barrier. */
 class Barrier extends AstNode {
-  index: number;
-  register: string;
-  constructor(register: string, index?: number) {
+  qubits: Array<[string, number?]>;
+  constructor(qubits: Array<[string, number?]>) {
     super();
-    this.index = index || null;
-    this.register = register;
+    this.qubits = qubits;
   }
 }
 

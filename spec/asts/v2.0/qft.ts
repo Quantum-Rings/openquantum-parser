@@ -19,7 +19,7 @@ export const qftAst = [
   new CReg("c", 4),
   [new ApplyGate("x", [["q", 0]], [])],
   [new ApplyGate("x", [["q", 2]], [])],
-  new Barrier("q", undefined),
+  new Barrier([["q", undefined]]),
   [new ApplyGate("h", [["q", 0]], [])],
   [
     new ApplyGate(

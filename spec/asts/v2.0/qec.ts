@@ -61,7 +61,7 @@ export const qecAst = [
     ],
   ]),
   [new ApplyGate("x", [["q", 0]], [])],
-  new Barrier("q", undefined),
+  new Barrier([["q", undefined]]),
   [
     new ApplyGate(
       "syndrome",

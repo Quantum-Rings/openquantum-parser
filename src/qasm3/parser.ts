@@ -1597,6 +1597,14 @@ class Parser {
 
       if (this.matchNext(offset + consumed, [Token.Comma])) {
         consumed++;
+        if (this.matchNext(offset + consumed, [Token.Semicolon])) {
+          throwParserError(
+            BadExpressionError,
+            this.tokens[offset + consumed],
+            this.index + consumed,
+            "trailing comma not allowed in qubit list",
+          );
+        }
       } else if (!this.matchNext(offset + consumed, [Token.Semicolon])) {
         break;
       }

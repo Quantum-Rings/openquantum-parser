@@ -38,7 +38,7 @@ export const teleportAst = [
       [],
     ),
   ],
-  new Barrier("q", undefined),
+  new Barrier([["q", undefined]]),
   [
     new ApplyGate(
       "cx",

@@ -15,7 +15,7 @@ export const rbAst = [
   new QReg("q", 2),
   new CReg("c", 2),
   [new ApplyGate("h", [["q", 0]], [])],
-  new Barrier("q", undefined),
+  new Barrier([["q", undefined]]),
   [
     new ApplyGate(
       "cz",
@@ -26,7 +26,7 @@ export const rbAst = [
       [],
     ),
   ],
-  new Barrier("q", undefined),
+  new Barrier([["q", undefined]]),
   [new ApplyGate("s", [["q", 0]], [])],
   [
     new ApplyGate(
@@ -38,10 +38,10 @@ export const rbAst = [
       [],
     ),
   ],
-  new Barrier("q", undefined),
+  new Barrier([["q", undefined]]),
   [new ApplyGate("s", [["q", 0]], [])],
   [new ApplyGate("z", [["q", 0]], [])],
   [new ApplyGate("h", [["q", 0]], [])],
-  new Barrier("q", undefined),
+  new Barrier([["q", undefined]]),
   new Measure("q", "c", undefined, undefined),
 ];

@@ -20,7 +20,7 @@ export const inverseqft1Ast = [
   new QReg("q", 4),
   new CReg("c", 4),
   [new ApplyGate("h", [["q", undefined]], [])],
-  new Barrier("q", null),
+  new Barrier([["q", undefined]]),
   [new ApplyGate("h", [["q", 0]], [])],
   new Measure("q", "c", 0, 0),
   new If("c", 1, [

@@ -18,7 +18,8 @@ import {
   BadExpressionError,
   BadSubroutineError,
   BadLoopError,
-  BadQuantumInstructionError
+  BadQuantumInstructionError,
+  BadBarrierError
 } from "../src/errors";
 
 describe("Error Handling", () => {
@@ -100,6 +101,20 @@ gate foo q {`;
 include;`;
       expect(() => parseString(code, 2)).toThrowError(BadIncludeError);
     });
+
+    it("should throw BadBarrierError for empty barrier", () => {
+      const code = `OPENQASM 2.0;
+qreg q[1];
+barrier;`;
+      expect(() => parseString(code, 2)).toThrowError(BadBarrierError);
+    });
+
+    it("should throw BadArgumentError for trailing comma in barrier", () => {
+      const code = `OPENQASM 2.0;
+qreg q[2];
+barrier q[0], ;`;
+      expect(() => parseString(code, 2)).toThrowError(BadArgumentError);
+    });
   });
 
   describe("QASM 3.0", () => {
@@ -144,6 +159,13 @@ reset ;`;
       const code = `OPENQASM 3.0;
 gate mygate(a b) q { }`;
       expect(() => parseString(code, 3)).toThrowError(BadParameterError);
+    });
+
+    it("should throw BadExpressionError for trailing comma in barrier", () => {
+      const code = `OPENQASM 3.0;
+qubit[2] q;
+barrier q[0], ;`;
+      expect(() => parseString(code, 3)).toThrowError(BadExpressionError);
     });
   });
 });

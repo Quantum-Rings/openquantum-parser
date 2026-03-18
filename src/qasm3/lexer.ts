@@ -65,7 +65,7 @@ function throwLexerError(
  * @return Whether the character is numeric.
  */
 function isNumeric(c: string): boolean {
-  return c == "." || c == "e" || c == "_" || !isNaN(parseInt(c));
+  return c !== undefined && (c == "." || c == "e" || c == "_" || !isNaN(parseInt(c)));
 }
 
 /**
@@ -75,6 +75,7 @@ function isNumeric(c: string): boolean {
  * @return Whether the character is a letter.
  */
 function isLetter(c: string, matchCase?: "upper" | "lower"): boolean {
+  if (c === undefined) return false;
   switch (matchCase) {
     case "upper":
       return /^[A-Z]$/.test(c);
@@ -92,6 +93,7 @@ function isLetter(c: string, matchCase?: "upper" | "lower"): boolean {
  * @return - Whether the given character is valid unicode.
  */
 function isUnicode(c: string, excludePi?: boolean): boolean {
+  if (c === undefined) return false;
   const isBasicUnicode = /^\u0000-\u00ff/.test(c);
   switch (excludePi) {
     case true:
@@ -109,6 +111,7 @@ function isUnicode(c: string, excludePi?: boolean): boolean {
  * @return Whether the character is alphanumeric.
  */
 function isAlpha(c: string): boolean {
+  if (c === undefined) return false;
   return /^[0-9a-zA-Z]+$/.test(c);
 }
 
@@ -118,6 +121,7 @@ function isAlpha(c: string): boolean {
  * @return Whether the character is a newline.
  */
 function isNewline(c: string): boolean {
+  if (c === undefined) return false;
   return /\n|\r(?!\n)|\u2028|\u2029|\r\n/.test(c);
 }
 
@@ -248,7 +252,7 @@ class Lexer {
    */
   skipComment = () => {
     let char = "";
-    while (!isNewline(char)) {
+    while (this.cursor < this.input.length && !isNewline(char)) {
       char = this.readChar();
     }
   };
@@ -260,11 +264,13 @@ class Lexer {
     let char = "";
     let nextChar = "";
     const multiLineCommentTerminator = "*/";
-    while (`${char}${nextChar}` !== multiLineCommentTerminator) {
+    while (this.cursor < this.input.length && `${char}${nextChar}` !== multiLineCommentTerminator) {
       char = this.readChar();
-      nextChar = this.peek();
+      nextChar = this.peek() || "";
     }
-    this.readChar();
+    if (this.cursor < this.input.length) {
+      this.readChar();
+    }
   };
 
   /**
@@ -287,7 +293,7 @@ class Lexer {
   readNumeric = (): string => {
     let num = "";
     let char = this.peek();
-    while (isNumeric(char) || char === "e") {
+    while (this.cursor < this.input.length && (isNumeric(char) || char === "e")) {
       num += this.readChar();
       if (char === "e" && this.peek() === "-") {
         num += this.readChar();
@@ -304,7 +310,7 @@ class Lexer {
   readIdentifier = (): string => {
     let id = "";
     let next = this.peek();
-    while (isAlpha(next) || next == "_" || isUnicode(next)) {
+    while (this.cursor < this.input.length && (isAlpha(next) || next == "_" || isUnicode(next))) {
       id += this.readChar();
       next = this.peek();
     }
@@ -352,7 +358,7 @@ class Lexer {
    * Advances the cusor past the next block of whitespace.
    */
   skipWhitespace = (): null => {
-    while (" \t\n\r\v".indexOf(this.peek()) > -1) {
+    while (this.cursor < this.input.length && " \t\n\r\v".indexOf(this.peek()) > -1) {
       this.cursor += 1;
     }
     return null;
@@ -575,7 +581,7 @@ class Lexer {
       case "$":
         if (/\d/.test(this.peek())) {
           let num = "";
-          while (/\d/.test(this.peek())) {
+          while (this.cursor < this.input.length && /\d/.test(this.peek())) {
             num += this.readChar();
           }
           result = [Token.HardwareQubit, parseInt(num)];
