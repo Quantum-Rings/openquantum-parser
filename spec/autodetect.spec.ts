@@ -28,6 +28,18 @@ bit[2] c;`;
     expect(hasQuantumDecl).toBe(true);
   });
 
+  it('autodetects OpenQASM 3.1 from header', () => {
+    const source = `OPENQASM 3.1;
+qubit[2] q;
+bit[2] c;`;
+
+    const ast = parseString(source);
+
+    // Verify we got QASM 3 AST nodes (QuantumDeclaration is specific to QASM 3 AST)
+    const hasQuantumDecl = ast.some((node: any) => node instanceof QuantumDeclaration);
+    expect(hasQuantumDecl).toBe(true);
+  });
+
   it('defaults to OpenQASM 3.0 when header is missing', () => {
     const source = `qubit[2] q;`;
 

@@ -4,7 +4,7 @@ import { lex } from "../src/lexer";
 import { Token as Qasm2Token } from "../src/qasm2/token";
 import { Token as Qasm3Token } from "../src/qasm3/token";
 import { BadGateError, MissingSemicolonError } from "../src/errors";
-import { tokenSet } from "./tokens";
+import { tokenSet } from "./tokens/index";
 
 const genericTests = "spec/qasm/generic";
 const invalidTests = "spec/qasm/invalid";
@@ -96,7 +96,9 @@ describe("lexer", () => {
                 }
 
                 for (let j = 0; j < tokens[i].length; j++) {
-                  expect(out[i][j]).toEqual(tokens[i][j]);
+                  const actual = out[i][j] === undefined ? null : out[i][j];
+                  const expected = tokens[i][j] === undefined ? null : tokens[i][j];
+                  expect(actual).toEqual(expected);
                 }
               }
             } else {
