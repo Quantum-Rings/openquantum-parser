@@ -130,10 +130,10 @@ class ClassicalType extends AstNode {}
  *   FLOAT designator?
  */
 class FloatType extends ClassicalType {
-  width: number | Expression | null;
+  width: number | Expression | undefined;
   constructor(width?: number | Expression) {
     super();
-    this.width = width ? width : null;
+    this.width = width;
   }
 }
 
@@ -210,14 +210,14 @@ class Parameters extends Expression {
 
 /** Class representing a range. */
 class Range extends Expression {
-  start: Expression | null;
-  end: Expression | null;
-  step: Expression | null;
+  start: Expression | undefined;
+  end: Expression | undefined;
+  step: Expression | undefined;
   constructor(start?: Expression, end?: Expression, step?: Expression) {
     super();
-    this.start = start ? start : null;
-    this.end = end ? end : null;
-    this.step = step ? step : null;
+    this.start = start;
+    this.end = end;
+    this.step = step;
   }
 }
 
@@ -721,8 +721,8 @@ class QuantumBarrier extends QuantumInstruction {
 
 /** Class representing a quantum reset instruction. */
 class QuantumReset extends QuantumInstruction {
-  identifier: Identifier | HardwareQubit;
-  constructor(identifier: Identifier | HardwareQubit) {
+  identifier: Identifier | SubscriptedIdentifier | HardwareQubit;
+  constructor(identifier: Identifier | SubscriptedIdentifier | HardwareQubit) {
     super();
     this.identifier = identifier;
   }
@@ -741,8 +741,8 @@ class QuantumDelay extends QuantumInstruction {
 
 /** Class representing a return statement. */
 class ReturnStatement extends Statement {
-  expression: Expression | QuantumMeasurement | null;
-  constructor(expression?: Expression | QuantumMeasurement) {
+  expression: Array<Expression | QuantumMeasurement> | null;
+  constructor(expression?: Array<Expression | QuantumMeasurement>) {
     super();
     this.expression = expression ? expression : null;
   }
@@ -898,7 +898,7 @@ class SubroutineCall extends Statement {
 class BranchingStatement extends Statement {
   condition: Expression;
   trueBody: ProgramBlock;
-  falseBody: ProgramBlock | null;
+  falseBody: ProgramBlock | undefined;
   constructor(
     condition: Expression,
     trueBody: ProgramBlock,

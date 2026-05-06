@@ -29,6 +29,7 @@ import { rusAst } from "./v3.0/rus";
 import { scqecAst } from "./v3.0/scqec";
 import { teleportAst as teleportAst3 } from "./v3.0/teleport";
 import { varteleportAst } from "./v3.0/varteleport";
+import { flexibleDeclarationsAst } from "./v3.0/flexible_declarations";
 
 export const astSet = {
   "v2.0": {
@@ -65,5 +66,6 @@ export const astSet = {
     "scqec.ts": scqecAst,
     "teleport.ts": teleportAst3,
     "varteleport.ts": varteleportAst,
+    "flexible_declarations.ts": flexibleDeclarationsAst,
   },
 };

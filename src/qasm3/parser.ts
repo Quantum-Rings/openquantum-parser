@@ -221,7 +221,7 @@ class Parser {
     machineIntSize?: number,
   ) {
     this.tokens = tokens;
-    this.gates = new Set(["U", "gphase"]);
+    this.gates = new Set(["U", "gphase", "cnot"]);
     this.standardGates = new Set();
     this.customGates = new Set();
     this.subroutines = new Set();
@@ -592,7 +592,7 @@ class Parser {
       this.matchNext(offset + consumed, [Token.String, Token.Semicolon])
     ) {
       return [
-        new CalibrationGrammarDeclaration(this.tokens[offset][1].toString()),
+        new CalibrationGrammarDeclaration(this.tokens[offset + consumed][1].toString()),
         consumed + 2,
       ];
     }
@@ -999,26 +999,24 @@ class Parser {
     const isQubit = this.tokens[offset][0] === Token.Qubit;
 
     let size: Expression | null = null;
-    // Qubit
-    if (isQubit) {
-      if (this.matchNext(offset + consumed, [Token.LSParen])) {
-        consumed++;
-        const [sizeExpr, sizeConsumed] = this.binaryExpression(
-          offset + consumed,
-        );
-        consumed += sizeConsumed;
-        size = sizeExpr;
+    // Check for size before identifier (supports flexible order)
+    if (this.matchNext(offset + consumed, [Token.LSParen])) {
+      consumed++;
+      const [sizeExpr, sizeConsumed] = this.binaryExpression(
+        offset + consumed,
+      );
+      consumed += sizeConsumed;
+      size = sizeExpr;
 
-        if (!this.matchNext(offset + consumed, [Token.RSParen])) {
-          throwParserError(
-            MissingBraceError,
-            this.tokens[offset + consumed],
-            this.index + consumed,
-            "expected closing bracket ] for qubit declaration size",
-          );
-        }
-        consumed++;
+      if (!this.matchNext(offset + consumed, [Token.RSParen])) {
+        throwParserError(
+          MissingBraceError,
+          this.tokens[offset + consumed],
+          this.index + consumed,
+          "expected closing bracket ] for quantum declaration size",
+        );
       }
+      consumed++;
     }
 
     if (!this.matchNext(offset + consumed, [Token.Id])) {
@@ -1030,13 +1028,11 @@ class Parser {
       );
     }
 
-    const [identifier, idConsumed] = this.unaryExpression(
-      offset + consumed,
-    );
-    consumed += idConsumed;
+    const identifier = new Identifier(this.tokens[offset + consumed][1] as string);
+    consumed++;
 
-    // Qreg
-    if (!isQubit && this.matchNext(offset + consumed, [Token.LSParen])) {
+    // Check for size after identifier if not already set (supports flexible order)
+    if (size === null && this.matchNext(offset + consumed, [Token.LSParen])) {
       consumed++;
       const [sizeExpr, sizeConsumed] = this.binaryExpression(
         offset + consumed,
@@ -1049,7 +1045,7 @@ class Parser {
           MissingBraceError,
           this.tokens[offset + consumed],
           this.index + consumed,
-          "expected closing bracket ] for quantum register size",
+          "expected closing bracket ] for quantum declaration size",
         );
       }
       consumed++;
@@ -1226,11 +1222,11 @@ class Parser {
     offset: number,
   ): [ReturnStatement, number] {
     let consumed = 1;
-    let expression: Expression | null = null;
+    let expression: Array<Expression | QuantumMeasurement> | undefined = undefined;
 
     if (!this.matchNext(offset + consumed, [Token.Semicolon])) {
-      const [expr, exprConsumed] = this.parseNode(offset + consumed);
-      expression = expr;
+      const [nodes, exprConsumed] = this.parseNode(offset + consumed);
+      expression = [nodes[0] as Expression | QuantumMeasurement];
       consumed += exprConsumed;
     }
 
@@ -1894,7 +1890,7 @@ class Parser {
     const [idNode, idConsumed] = this.unaryExpression(offset + consumed);
     consumed += idConsumed;
 
-    let id: Identifier | SubscriptedIdentifier | HardwareQubit = null;
+    let id: Identifier | SubscriptedIdentifier | HardwareQubit | undefined = undefined;
     if (idNode instanceof SubscriptedIdentifier) {
       id = idNode as SubscriptedIdentifier;
     } else if (idNode instanceof HardwareQubit) {
@@ -1916,9 +1912,9 @@ class Parser {
     offset: number,
   ): [Expression | Range | IndexSet, number] {
     let consumed = 1;
-    let start: Expression | null = null;
+    let start: Expression;
     let step: Expression = new IntegerLiteral(1);
-    let stop: Expression | null = null;
+    let stop: Expression | undefined = undefined;
 
     if (this.matchNext(offset + consumed, [Token.LCParen])) {
       const [indexSet, indexSetConsumed] = this.parseIndexSet(
@@ -1947,7 +1943,7 @@ class Parser {
     }
 
     if (this.matchNext(offset + consumed, [Token.RSParen])) {
-      return [start, consumed + 1];
+      return [start!, consumed + 1];
     }
 
     // Check for colon after start
@@ -2003,7 +1999,7 @@ class Parser {
     consumed++;
 
     // Validate that both start and stop are provided
-    if (start === null || stop === null) {
+    if (stop === undefined) {
       throwParserError(
         BadExpressionError,
         this.tokens[offset],
@@ -2874,7 +2870,7 @@ class Parser {
     let version: OpenQASMVersion;
     let consumed = 1;
     if (this.matchNext(offset + consumed, [Token.NNInteger, Token.Semicolon])) {
-      version = new OpenQASMVersion(Number(this.tokens[offset][1]));
+      version = new OpenQASMVersion(Number(this.tokens[offset + consumed][1]));
       if (!version.isVersion3()) {
         throwParserError(
           UnsupportedOpenQASMVersionError,
@@ -3169,7 +3165,7 @@ class Parser {
   /** Checks whether a number is imaginary. */
   private isImaginary(offset: number): boolean {
     const token = this.tokens[offset];
-    if (token[1] === undefined) {
+    if (!token || token[1] === undefined || token[1] === null) {
       return false;
     }
     return token[1].toString() === "im";
@@ -3187,7 +3183,7 @@ class Parser {
   /** Checks whether an identifier represents a duration literal unit. */
   private isDuration(offset: number): boolean {
     const checkToken = this.tokens[offset];
-    if (checkToken[1] === undefined || checkToken[0] !== Token.Id) {
+    if (!checkToken || checkToken[1] === undefined || checkToken[1] === null || checkToken[0] !== Token.Id) {
       return false;
     }
     if (
