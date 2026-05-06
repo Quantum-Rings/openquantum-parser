@@ -9,7 +9,8 @@ describe("Barrier Statements", () => {
       const code = `OPENQASM 2.0;
 qreg q[2];
 barrier q[0], q[1];`;
-      const ast = parseString(code, 2) as any[];
+      const result = parseString(code, 2);
+      const ast = result.ast as any[];
       const barrier = ast.find((node) => node instanceof Barrier) as Barrier;
       
       expect(barrier).toBeDefined();
@@ -22,7 +23,8 @@ barrier q[0], q[1];`;
       const code = `OPENQASM 2.0;
 qreg q[2];
 barrier q;`;
-      const ast = parseString(code, 2) as any[];
+      const result = parseString(code, 2);
+      const ast = result.ast as any[];
       const barrier = ast.find((node) => node instanceof Barrier) as Barrier;
       
       expect(barrier).toBeDefined();
@@ -35,7 +37,8 @@ barrier q;`;
     it("should parse an empty barrier", () => {
       const code = `OPENQASM 3.0;
 barrier;`;
-      const ast = parseString(code, 3) as AstNode[];
+      const result = parseString(code, 3);
+      const ast = result.ast as AstNode[];
       const barrier = ast.find((node) => node instanceof QuantumBarrier) as QuantumBarrier;
       
       expect(barrier).toBeDefined();
@@ -46,7 +49,8 @@ barrier;`;
       const code = `OPENQASM 3.0;
 qubit[2] q;
 barrier q[0], q[1];`;
-      const ast = parseString(code, 3) as AstNode[];
+      const result = parseString(code, 3);
+      const ast = result.ast as AstNode[];
       const barrier = ast.find((node) => node instanceof QuantumBarrier) as QuantumBarrier;
       
       expect(barrier).toBeDefined();
@@ -61,7 +65,8 @@ barrier q[0], q[1];`;
       const code = `OPENQASM 3.0;
 qubit[2] q;
 barrier q;`;
-      const ast = parseString(code, 3) as AstNode[];
+      const result = parseString(code, 3);
+      const ast = result.ast as AstNode[];
       const barrier = ast.find((node) => node instanceof QuantumBarrier) as QuantumBarrier;
       
       expect(barrier).toBeDefined();

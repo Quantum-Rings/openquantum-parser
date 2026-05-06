@@ -11,6 +11,16 @@ import { lex } from "./lexer";
 import { parse } from "./parser";
 
 /**
+ * Result of parsing OpenQASM code, including the AST and detected version.
+ */
+export interface ParseResult {
+  /** The abstract syntax tree as an array of nodes */
+  ast: any;
+  /** The detected or specified OpenQASM major version (2 or 3) */
+  version: number;
+}
+
+/**
  * Parses OpenQASM code from a string and returns the abstract syntax tree.
  *
  * This is the primary entry point for parsing OpenQASM code. It handles both
@@ -22,7 +32,7 @@ import { parse } from "./parser";
  * @param version - The OpenQASM version to use (defaults to 3.0)
  * @param verbose - Whether to include class names in the output (defaults to false)
  * @param stringify - Whether to return stringified JSON (defaults to false)
- * @returns The corresponding AST as an array of nodes, or stringified JSON if stringify is true
+ * @returns The parse result containing the AST and detected version
  *
  * @example Basic OpenQASM 3.0 parsing
  * ```typescript
@@ -36,8 +46,9 @@ import { parse } from "./parser";
  * cx q[0], q[1];
  * `;
  *
- * const ast = parseString(qasmCode);
- * console.log(ast);
+ * const result = parseString(qasmCode);
+ * console.log(result.version); // 3
+ * console.log(result.ast);
  * ```
  *
  * @example OpenQASM 2.0 parsing
@@ -52,13 +63,15 @@ import { parse } from "./parser";
  * measure q -> c;
  * `;
  *
- * const ast = parseString(qasm2Code, 2);
+ * const result = parseString(qasm2Code, 2);
+ * console.log(result.version); // 2
  * ```
  *
  * @example Verbose output with class names
  * ```typescript
- * const ast = parseString(qasmCode, 3, true);
+ * const result = parseString(qasmCode, 3, true);
  * // Output will include __className__ properties for each node
+ * console.log(result.ast);
  * ```
  */
 export function parseString(
@@ -66,18 +79,25 @@ export function parseString(
   version?: number | OpenQASMVersion | OpenQASMMajorVersion,
   verbose?: boolean,
   stringify?: boolean,
-) {
+): ParseResult {
   let ast: any;
+  let normalizedVersion: number;
   if (version === undefined) {
     const versionMatch = qasm.match(/^\s*OPENQASM\s+(\d+)/m);
     if (versionMatch) {
-      version = parseInt(versionMatch[1], 10);
+      normalizedVersion = parseInt(versionMatch[1], 10);
     } else {
-      version = 3;
+      normalizedVersion = 3;
     }
+  } else if (typeof version === "number") {
+    normalizedVersion = version;
+  } else if (version instanceof OpenQASMVersion) {
+    normalizedVersion = version.major;
+  } else {
+    normalizedVersion = version === OpenQASMMajorVersion.Version2 ? 2 : 3;
   }
-  const tokens = lex(qasm, undefined, version);
-  ast = parse(tokens, version);
+  const tokens = lex(qasm, undefined, normalizedVersion);
+  ast = parse(tokens, normalizedVersion);
   if (verbose === true) {
     if (stringify === true) {
       ast = JSON.stringify(getDetailedOutput(ast), null, 2);
@@ -88,33 +108,36 @@ export function parseString(
       ast = JSON.stringify(ast, null, 2);
     }
   }
-  return ast;
+  return { ast, version: normalizedVersion };
 }
 
 /**
- * Parses OpenQASM code from a file and returns the abstract syntax tree.
+ * Parses OpenQASM code from a file and returns the parse result.
  *
  * @group Main Functions
  * @param file - The path to the .qasm file to parse
  * @param version - The OpenQASM version to use (defaults to 3.0)
  * @param verbose - Whether to include class names in the output (defaults to false)
  * @param stringify - Whether to return stringified JSON (defaults to false)
- * @returns The corresponding AST as an array of nodes, or stringified JSON if stringify is true
+ * @returns The parse result containing the AST and detected version
  *
  * @example Parse a QASM file
  * ```typescript
  * import { parseFile } from 'qasm-ts';
  *
  * // Parse OpenQASM 3.0 file
- * const ast = parseFile('./my-circuit.qasm');
+ * const result = parseFile('./my-circuit.qasm');
+ * console.log(result.version); // 3
+ * console.log(result.ast);
  *
  * // Parse OpenQASM 2.0 file
- * const ast2 = parseFile('./legacy-circuit.qasm', 2);
+ * const result2 = parseFile('./legacy-circuit.qasm', 2);
+ * console.log(result2.version); // 2
  * ```
  *
  * @example Parse with verbose output
  * ```typescript
- * const ast = parseFile('./circuit.qasm', 3, true);
+ * const result = parseFile('./circuit.qasm', 3, true);
  * // Includes detailed class information for each AST node
  * ```
  */
@@ -123,7 +146,7 @@ export function parseFile(
   version?: number | OpenQASMVersion | OpenQASMMajorVersion,
   verbose?: boolean,
   stringify?: boolean,
-) {
+): ParseResult {
   return parseString(
     fs.readFileSync(file, "utf8"),
     version,

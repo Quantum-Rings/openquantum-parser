@@ -9,8 +9,10 @@ qreg q[2];
 creg c[2];
 h q[0];`;
 
-    const ast = parseString(source);
+    const result = parseString(source);
+    const ast = result.ast;
 
+    expect(result.version).toBe(2);
     // Verify we got QASM 2 AST nodes (QReg is specific to QASM 2 AST in this parser)
     const hasQReg = ast.some((node: any) => node instanceof QReg);
     expect(hasQReg).toBe(true);
@@ -21,8 +23,10 @@ h q[0];`;
 qubit[2] q;
 bit[2] c;`;
 
-    const ast = parseString(source);
+    const result = parseString(source);
+    const ast = result.ast;
 
+    expect(result.version).toBe(3);
     // Verify we got QASM 3 AST nodes (QuantumDeclaration is specific to QASM 3 AST)
     const hasQuantumDecl = ast.some((node: any) => node instanceof QuantumDeclaration);
     expect(hasQuantumDecl).toBe(true);
@@ -33,8 +37,10 @@ bit[2] c;`;
 qubit[2] q;
 bit[2] c;`;
 
-    const ast = parseString(source);
+    const result = parseString(source);
+    const ast = result.ast;
 
+    expect(result.version).toBe(3);
     // Verify we got QASM 3 AST nodes (QuantumDeclaration is specific to QASM 3 AST)
     const hasQuantumDecl = ast.some((node: any) => node instanceof QuantumDeclaration);
     expect(hasQuantumDecl).toBe(true);
@@ -43,8 +49,10 @@ bit[2] c;`;
   it('defaults to OpenQASM 3.0 when header is missing', () => {
     const source = `qubit[2] q;`;
 
-    const ast = parseString(source);
+    const result = parseString(source);
+    const ast = result.ast;
 
+    expect(result.version).toBe(3);
     // Should parse as QASM 3 by default
     const hasQuantumDecl = ast.some((node: any) => node instanceof QuantumDeclaration);
     expect(hasQuantumDecl).toBe(true);
@@ -55,7 +63,10 @@ bit[2] c;`;
     OPENQASM 2.0;
 qreg q[1];`;
 
-    const ast = parseString(source);
+    const result = parseString(source);
+    const ast = result.ast;
+
+    expect(result.version).toBe(2);
     const hasQReg = ast.some((node: any) => node instanceof QReg);
     expect(hasQReg).toBe(true);
   });
