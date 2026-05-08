@@ -92,8 +92,8 @@ export const qecAst = [
       new ReturnStatement([new Identifier("b")]),
     ]),
     new Parameters([
-      [new QuantumDeclaration(new Identifier("d"), new IntegerLiteral(3))],
-      [new QuantumDeclaration(new Identifier("a"), new IntegerLiteral(2))],
+      new QuantumDeclaration(new Identifier("d"), new IntegerLiteral(3)),
+      new QuantumDeclaration(new Identifier("a"), new IntegerLiteral(2)),
     ]),
     new BitType(new IntegerLiteral(2)),
   ),

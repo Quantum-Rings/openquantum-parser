@@ -49,7 +49,24 @@
 import { OpenQASMVersion } from "../version";
 
 /** Base class representing a basic AST node. */
-class AstNode {}
+class AstNode {
+  line?: number;
+  column?: number;
+  constructor(line?: number, column?: number) {
+    Object.defineProperty(this, 'line', {
+      value: line,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+    Object.defineProperty(this, 'column', {
+      value: column,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+  }
+}
 
 /**
  * Base class representing an instruction which performs an action.
@@ -74,8 +91,8 @@ class Statement extends AstNode {}
  */
 class CalibrationGrammarDeclaration extends Statement {
   name: string;
-  constructor(name: string) {
-    super();
+  constructor(name: string, line?: number, column?: number) {
+    super(line, column);
     this.name = name;
   }
 }
@@ -88,8 +105,8 @@ class CalibrationGrammarDeclaration extends Statement {
  */
 class Include extends AstNode {
   filename: string;
-  constructor(filename: string) {
-    super();
+  constructor(filename: string, line?: number, column?: number) {
+    super(line, column);
     this.filename = filename;
   }
 }
@@ -102,8 +119,8 @@ class Include extends AstNode {
  */
 class Version extends AstNode {
   version: OpenQASMVersion;
-  constructor(version: OpenQASMVersion) {
-    super();
+  constructor(version: OpenQASMVersion, line?: number, column?: number) {
+    super(line, column);
     this.version = version;
   }
 }
@@ -131,8 +148,8 @@ class ClassicalType extends AstNode {}
  */
 class FloatType extends ClassicalType {
   width: number | Expression | undefined;
-  constructor(width?: number | Expression) {
-    super();
+  constructor(width?: number | Expression, line?: number, column?: number) {
+    super(line, column);
     this.width = width;
   }
 }
@@ -145,20 +162,24 @@ class FloatType extends ClassicalType {
  */
 class ComplexType extends ClassicalType {
   float: FloatType;
-  constructor(float: FloatType) {
-    super();
+  constructor(float: FloatType, line?: number, column?: number) {
+    super(line, column);
     this.float = float;
   }
 }
 
 /** Class representing a classical boolean type. */
-class BoolType extends ClassicalType {}
+class BoolType extends ClassicalType {
+  constructor(line?: number, column?: number) {
+    super(line, column);
+  }
+}
 
 /** Class representing a classical signed integer type. */
 class IntType extends ClassicalType {
   size: number | Expression | null;
-  constructor(size?: number | Expression) {
-    super();
+  constructor(size?: number | Expression, line?: number, column?: number) {
+    super(line, column);
     this.size = size ? size : null;
   }
 }
@@ -166,8 +187,8 @@ class IntType extends ClassicalType {
 /** Class representing a classical unsigned integer type. */
 class UIntType extends ClassicalType {
   size: number | Expression | null;
-  constructor(size?: number | Expression) {
-    super();
+  constructor(size?: number | Expression, line?: number, column?: number) {
+    super(line, column);
     this.size = size ? size : null;
   }
 }
@@ -175,8 +196,8 @@ class UIntType extends ClassicalType {
 /** Class representing a classical bit type. */
 class BitType extends ClassicalType {
   size: number | Expression | null;
-  constructor(size?: number | Expression) {
-    super();
+  constructor(size?: number | Expression, line?: number, column?: number) {
+    super(line, column);
     this.size = size ? size : null;
   }
 }
@@ -184,26 +205,34 @@ class BitType extends ClassicalType {
 /** Class representing an angle type. */
 class AngleType extends ClassicalType {
   size: number | Expression | null;
-  constructor(size?: number | Expression) {
-    super();
+  constructor(size?: number | Expression, line?: number, column?: number) {
+    super(line, column);
     this.size = size ? size : null;
   }
 }
 
 /** Class representing the stretch type. */
-class StretchType extends ClassicalType {}
+class StretchType extends ClassicalType {
+  constructor(line?: number, column?: number) {
+    super(line, column);
+  }
+}
 
 /** Class representing a duration type. */
-class DurationType extends ClassicalType {}
+class DurationType extends ClassicalType {
+  constructor(line?: number, column?: number) {
+    super(line, column);
+  }
+}
 
 /** Base class representing an expression. */
 class Expression extends AstNode {}
 
 /** Class representing a list of parameters. */
 class Parameters extends Expression {
-  args: Array<Expression>;
-  constructor(args: Array<Expression>) {
-    super();
+  args: Array<any>;
+  constructor(args: Array<any>, line?: number, column?: number) {
+    super(line, column);
     this.args = args;
   }
 }
@@ -213,8 +242,8 @@ class Range extends Expression {
   start: Expression | undefined;
   end: Expression | undefined;
   step: Expression | undefined;
-  constructor(start?: Expression, end?: Expression, step?: Expression) {
-    super();
+  constructor(start?: Expression, end?: Expression, step?: Expression, line?: number, column?: number) {
+    super(line, column);
     this.start = start;
     this.end = end;
     this.step = step;
@@ -224,8 +253,8 @@ class Range extends Expression {
 /** Class representing an expression identifier. */
 class Identifier extends Expression {
   name: string;
-  constructor(name: string) {
-    super();
+  constructor(name: string, line?: number, column?: number) {
+    super(line, column);
     this.name = name;
   }
 }
@@ -233,20 +262,32 @@ class Identifier extends Expression {
 /** Class representing an identifier with subscripted access. */
 class SubscriptedIdentifier extends Identifier {
   subscript: Range | Expression;
-  constructor(name: string, subscript: Range | Expression) {
-    super(name);
+  constructor(name: string, subscript: Range | Expression, line?: number, column?: number) {
+    super(name, line, column);
     this.subscript = subscript;
   }
 }
 
 /** Class representing the Pi constant. */
-class Pi extends Expression {}
+class Pi extends Expression {
+  constructor(line?: number, column?: number) {
+    super(line, column);
+  }
+}
 
 /** Class representing the Euler constant. */
-class Euler extends Expression {}
+class Euler extends Expression {
+  constructor(line?: number, column?: number) {
+    super(line, column);
+  }
+}
 
 /** Class representing the Tau constant. */
-class Tau extends Expression {}
+class Tau extends Expression {
+  constructor(line?: number, column?: number) {
+    super(line, column);
+  }
+}
 
 /** Enum representing the available mathematical functions. */
 enum MathFunctionTypes {
@@ -265,12 +306,14 @@ enum MathFunctionTypes {
 /** Class representing a mathematical function. */
 class MathFunction extends Expression {
   mathType: MathFunctionTypes;
-  operands: Expression;
+  operands: Expression | Array<Expression>;
   constructor(
     mathType: MathFunctionTypes,
     operands: Expression | Array<Expression>,
+    line?: number,
+    column?: number,
   ) {
-    super();
+    super(line, column);
     this.mathType = mathType;
     this.operands = operands;
   }
@@ -290,8 +333,8 @@ enum TrigFunctionTypes {
 class TrigFunction extends Expression {
   trigType: TrigFunctionTypes;
   operand: Expression;
-  constructor(trigType: TrigFunctionTypes, operand: Expression) {
-    super();
+  constructor(trigType: TrigFunctionTypes, operand: Expression, line?: number, column?: number) {
+    super(line, column);
     this.trigType = trigType;
     this.operand = operand;
   }
@@ -299,9 +342,9 @@ class TrigFunction extends Expression {
 
 /** Class representing an integer literal. */
 class IntegerLiteral extends Expression {
-  value: number | string;
-  constructor(value: number | string) {
-    super();
+  value: number | string | undefined;
+  constructor(value?: number | string, line?: number, column?: number) {
+    super(line, column);
     this.value = value;
   }
 }
@@ -309,8 +352,8 @@ class IntegerLiteral extends Expression {
 /** Class representing a scientific notation, binary, octal, or hex literal. */
 class NumericLiteral extends Expression {
   value: string;
-  constructor(value: string) {
-    super();
+  constructor(value: string, line?: number, column?: number) {
+    super(line, column);
     this.value = value;
   }
 }
@@ -318,8 +361,8 @@ class NumericLiteral extends Expression {
 /** Class representing a float literal. */
 class FloatLiteral extends Expression {
   value: number | string;
-  constructor(value: number | string) {
-    super();
+  constructor(value: number | string, line?: number, column?: number) {
+    super(line, column);
     this.value = value;
   }
 }
@@ -327,8 +370,8 @@ class FloatLiteral extends Expression {
 /** Class representing an imaginary number literal. */
 class ImaginaryLiteral extends Expression {
   value: string;
-  constructor(value: string) {
-    super();
+  constructor(value: string, line?: number, column?: number) {
+    super(line, column);
     this.value = value;
   }
 }
@@ -336,8 +379,8 @@ class ImaginaryLiteral extends Expression {
 /** Class representing a boolean literal. */
 class BooleanLiteral extends Expression {
   value: boolean;
-  constructor(value: boolean) {
-    super();
+  constructor(value: boolean, line?: number, column?: number) {
+    super(line, column);
     this.value = value;
   }
 }
@@ -345,8 +388,8 @@ class BooleanLiteral extends Expression {
 /** Class representing a bit string literal. */
 class BitstringLiteral extends Expression {
   value: string;
-  constructor(value: string) {
-    super();
+  constructor(value: string, line?: number, column?: number) {
+    super(line, column);
     this.value = value;
   }
 }
@@ -364,8 +407,8 @@ enum DurationUnit {
 class DurationLiteral extends Expression {
   value: number | Expression;
   unit: DurationUnit;
-  constructor(value: number | Expression, unit: DurationUnit) {
-    super();
+  constructor(value: number | Expression, unit: DurationUnit, line?: number, column?: number) {
+    super(line, column);
     this.value = value;
     this.unit = unit;
   }
@@ -374,8 +417,8 @@ class DurationLiteral extends Expression {
 /** Class representing a durationof function call. */
 class DurationOf extends Expression {
   scope: ProgramBlock;
-  constructor(scope: ProgramBlock) {
-    super();
+  constructor(scope: ProgramBlock, line?: number, column?: number) {
+    super(line, column);
     this.scope = scope;
   }
 }
@@ -384,13 +427,13 @@ class DurationOf extends Expression {
 class SizeOf extends Expression {
   array: Identifier;
   dimensionIndex: Expression;
-  constructor(array: Identifier, dimensionIndex?: Expression | null) {
-    super();
+  constructor(array: Identifier, dimensionIndex?: Expression | null, line?: number, column?: number) {
+    super(line, column);
     this.array = array;
     this.dimensionIndex =
       dimensionIndex !== undefined && dimensionIndex !== null
         ? dimensionIndex
-        : new IntegerLiteral(0);
+        : new IntegerLiteral(0, line, column);
   }
 }
 
@@ -405,8 +448,8 @@ enum UnaryOp {
 class Unary extends Expression {
   op: UnaryOp;
   operand: Expression;
-  constructor(op: UnaryOp, operand: Expression) {
-    super();
+  constructor(op: UnaryOp, operand: Expression, line?: number, column?: number) {
+    super(line, column);
     this.op = op;
     this.operand = operand;
   }
@@ -428,8 +471,8 @@ class Arithmetic extends Expression {
   op: ArithmeticOp;
   left: Expression;
   right: Expression;
-  constructor(op: ArithmeticOp, left: Expression, right: Expression) {
-    super();
+  constructor(op: ArithmeticOp, left: Expression, right: Expression, line?: number, column?: number) {
+    super(line, column);
     this.op = op;
     this.left = left;
     this.right = right;
@@ -458,8 +501,8 @@ class Binary extends Expression {
   op: BinaryOp;
   left: Expression;
   right: Expression;
-  constructor(op: BinaryOp, left: Expression, right: Expression) {
-    super();
+  constructor(op: BinaryOp, left: Expression, right: Expression, line?: number, column?: number) {
+    super(line, column);
     this.op = op;
     this.left = left;
     this.right = right;
@@ -470,8 +513,8 @@ class Binary extends Expression {
 class Cast extends Expression {
   type: ClassicalType;
   operand: Expression;
-  constructor(type: ClassicalType, operand: Expression) {
-    super();
+  constructor(type: ClassicalType, operand: Expression, line?: number, column?: number) {
+    super(line, column);
     this.type = type;
     this.operand = operand;
   }
@@ -484,8 +527,8 @@ class Cast extends Expression {
  */
 class IndexSet extends Expression {
   values: Array<Expression>;
-  constructor(values: Array<Expression>) {
-    super();
+  constructor(values: Array<Expression>, line?: number, column?: number) {
+    super(line, column);
     this.values = values;
   }
 }
@@ -500,8 +543,8 @@ enum ArrayReferenceModifier {
 class ArrayReference extends Expression {
   array: ArrayDeclaration;
   modifier: ArrayReferenceModifier;
-  constructor(array: ArrayDeclaration, modifier: ArrayReferenceModifier) {
-    super();
+  constructor(array: ArrayDeclaration, modifier: ArrayReferenceModifier, line?: number, column?: number) {
+    super(line, column);
     this.array = array;
     this.modifier = modifier;
   }
@@ -518,8 +561,9 @@ class ArrayDeclaration extends Statement {
     dimensions: Array<Expression> | number,
     identifier: Identifier,
     initializer?: ArrayInitializer | Expression | null,
+    line?: number, column?: number,
   ) {
-    super();
+    super(line, column);
     this.baseType = baseType;
     this.dimensions = dimensions;
     this.identifier = identifier;
@@ -531,8 +575,8 @@ class ArrayDeclaration extends Statement {
 /** Class representing an initial value for an ArrayDeclaration. */
 class ArrayInitializer extends Expression {
   values: Array<Expression | ArrayInitializer>;
-  constructor(values: Array<Expression | ArrayInitializer>) {
-    super();
+  constructor(values: Array<Expression | ArrayInitializer>, line?: number, column?: number) {
+    super(line, column);
     this.values = values;
   }
 }
@@ -541,8 +585,8 @@ class ArrayInitializer extends Expression {
 class ArrayAccess extends Expression {
   array: Identifier;
   indices: Array<Expression> | Range | null;
-  constructor(array: Identifier, indices?: Array<Expression> | Range) {
-    super();
+  constructor(array: Identifier, indices?: Array<Expression> | Range, line?: number, column?: number) {
+    super(line, column);
     this.array = array;
     this.indices = indices !== undefined && indices !== null ? indices : null;
   }
@@ -556,8 +600,8 @@ class ArrayAccess extends Expression {
  */
 class QuantumMeasurement extends AstNode {
   identifierList: Array<Identifier | HardwareQubit>;
-  constructor(identifierList: Array<Identifier | HardwareQubit>) {
-    super();
+  constructor(identifierList: Array<Identifier | HardwareQubit>, line?: number, column?: number) {
+    super(line, column);
     this.identifierList = identifierList;
   }
 }
@@ -575,8 +619,9 @@ class QuantumMeasurementAssignment extends Statement {
   constructor(
     identifier: Identifier | SubscriptedIdentifier,
     quantumMeasurement: QuantumMeasurement,
+    line?: number, column?: number
   ) {
-    super();
+    super(line, column);
     this.identifier = identifier;
     this.quantumMeasurement = quantumMeasurement;
   }
@@ -590,11 +635,12 @@ class ClassicalDeclaration extends Statement {
   isConst: boolean;
   constructor(
     classicalType: ClassicalType,
-    identifier?: Identifier,
-    initializer?: any,
+    identifier?: Identifier | null,
+    initializer?: any | null,
     isConst?: boolean,
+    line?: number, column?: number,
   ) {
-    super();
+    super(line, column);
     this.classicalType = classicalType;
     this.identifier =
       identifier !== undefined && identifier !== null ? identifier : null;
@@ -611,8 +657,9 @@ class AssignmentStatement extends Statement {
   constructor(
     leftValue: SubscriptedIdentifier | Identifier | ArrayAccess,
     rightValue: Expression | SubroutineCall | ArrayAccess,
+    line?: number, column?: number
   ) {
-    super();
+    super(line, column);
     this.leftValue = leftValue;
     this.rightValue = rightValue;
   }
@@ -628,8 +675,8 @@ class AssignmentStatement extends Statement {
 class QuantumDeclaration extends AstNode {
   identifier: Identifier;
   size: Expression | null;
-  constructor(identifier: Identifier, size?: Expression | null) {
-    super();
+  constructor(identifier: Identifier, size?: Expression | null, line?: number, column?: number) {
+    super(line, column);
     this.identifier = identifier;
     this.size = size ? size : null;
   }
@@ -642,8 +689,8 @@ class QuantumDeclaration extends AstNode {
  */
 class HardwareQubit extends Expression {
   number: number;
-  constructor(number: number) {
-    super();
+  constructor(number: number, line?: number, column?: number) {
+    super(line, column);
     this.number = number;
   }
 }
@@ -652,8 +699,8 @@ class HardwareQubit extends Expression {
 class AliasStatement extends AstNode {
   identifier: Identifier;
   value: Expression;
-  constructor(identifier: Identifier, value: Expression) {
-    super();
+  constructor(identifier: Identifier, value: Expression, line?: number, column?: number) {
+    super(line, column);
     this.identifier = identifier;
     this.value = value;
   }
@@ -671,8 +718,8 @@ enum QuantumGateModifierName {
 class QuantumGateModifier extends AstNode {
   modifier: QuantumGateModifierName;
   argument: Expression | null;
-  constructor(modifier: QuantumGateModifierName, argument?: Expression) {
-    super();
+  constructor(modifier: QuantumGateModifierName, argument?: Expression | null, line?: number, column?: number) {
+    super(line, column);
     this.modifier = modifier;
     this.argument = argument ? argument : null;
   }
@@ -690,13 +737,14 @@ class QuantumGateCall extends QuantumInstruction {
   parameters: Parameters | null;
   modifiers: Array<QuantumGateModifier> | null;
   constructor(
-    quantumGateCall: Identifier,
+    quantumGateName: Identifier,
     qubits: Array<Identifier | HardwareQubit>,
-    parameters?: Parameters,
-    modifiers?: Array<QuantumGateModifier>,
+    parameters?: Parameters | null,
+    modifiers?: Array<QuantumGateModifier> | null,
+    line?: number, column?: number,
   ) {
-    super();
-    this.quantumGateName = quantumGateCall;
+    super(line, column);
+    this.quantumGateName = quantumGateName;
     this.qubits = qubits;
     this.parameters = parameters ? parameters : null;
     this.modifiers = modifiers ? modifiers : [];
@@ -712,9 +760,9 @@ class QuantumGateCall extends QuantumInstruction {
 class QuantumBarrier extends QuantumInstruction {
   qubits: Array<Identifier | SubscriptedIdentifier | HardwareQubit>;
   constructor(
-    qubits: Array<Identifier | SubscriptedIdentifier | HardwareQubit>,
+    qubits: Array<Identifier | SubscriptedIdentifier | HardwareQubit>, line?: number, column?: number
   ) {
-    super();
+    super(line, column);
     this.qubits = qubits;
   }
 }
@@ -722,8 +770,8 @@ class QuantumBarrier extends QuantumInstruction {
 /** Class representing a quantum reset instruction. */
 class QuantumReset extends QuantumInstruction {
   identifier: Identifier | SubscriptedIdentifier | HardwareQubit;
-  constructor(identifier: Identifier | SubscriptedIdentifier | HardwareQubit) {
-    super();
+  constructor(identifier: Identifier | SubscriptedIdentifier | HardwareQubit, line?: number, column?: number) {
+    super(line, column);
     this.identifier = identifier;
   }
 }
@@ -732,8 +780,8 @@ class QuantumReset extends QuantumInstruction {
 class QuantumDelay extends QuantumInstruction {
   duration: Expression;
   qubits: Array<Identifier | SubscriptedIdentifier | HardwareQubit>;
-  constructor(duration: Expression, qubits: Array<Identifier | HardwareQubit>) {
-    super();
+  constructor(duration: Expression, qubits: Array<Identifier | SubscriptedIdentifier | HardwareQubit>, line?: number, column?: number) {
+    super(line, column);
     this.duration = duration;
     this.qubits = qubits;
   }
@@ -742,8 +790,8 @@ class QuantumDelay extends QuantumInstruction {
 /** Class representing a return statement. */
 class ReturnStatement extends Statement {
   expression: Array<Expression | QuantumMeasurement> | null;
-  constructor(expression?: Array<Expression | QuantumMeasurement>) {
-    super();
+  constructor(expression?: Array<Expression | QuantumMeasurement> | null, line?: number, column?: number) {
+    super(line, column);
     this.expression = expression ? expression : null;
   }
 }
@@ -757,8 +805,8 @@ class ReturnStatement extends Statement {
  */
 class ProgramBlock extends AstNode {
   statements: Array<Statement | Expression>;
-  constructor(statements: Array<Statement | Expression>) {
-    super();
+  constructor(statements: Array<Statement | Expression>, line?: number, column?: number) {
+    super(line, column);
     this.statements = statements;
   }
 }
@@ -770,8 +818,8 @@ class ProgramBlock extends AstNode {
  *  : LBRACE (quantumStatement | quantumLoop) * RBRACE
  */
 class QuantumBlock extends ProgramBlock {
-  constructor(statements: Array<Statement>) {
-    super(statements);
+  constructor(statements: Array<Statement>, line?: number, column?: number) {
+    super(statements, line, column);
   }
 }
 
@@ -782,8 +830,8 @@ class QuantumBlock extends ProgramBlock {
  *  : LBRACE statement* returnStatement? RBRACE
  */
 class SubroutineBlock extends ProgramBlock {
-  constructor(statements: Array<Statement>) {
-    super(statements);
+  constructor(statements: Array<Statement>, line?: number, column?: number) {
+    super(statements, line, column);
   }
 }
 
@@ -803,8 +851,9 @@ class QuantumGateDefinition extends Statement {
     params: Parameters,
     qubits: Array<Identifier>,
     body: QuantumBlock,
+    line?: number, column?: number
   ) {
-    super();
+    super(line, column);
     this.name = name;
     this.params = params;
     this.qubits = qubits;
@@ -824,10 +873,11 @@ class ExternSignature extends Statement {
   returnType: ClassicalType | null;
   constructor(
     name: Identifier,
-    args: Parameters | null,
-    returnType?: ClassicalType,
+    args: Parameters | null,    
+    returnType?: ClassicalType | null,
+    line?: number, column?: number,
   ) {
-    super();
+    super(line, column);
     this.name = name;
     this.args = args;
     this.returnType =
@@ -850,10 +900,11 @@ class SubroutineDefinition extends Statement {
   constructor(
     name: Identifier,
     subroutineBlock: SubroutineBlock,
-    args: Parameters | null,
-    returnType?: ClassicalType,
+    args: Parameters | null,    
+    returnType?: ClassicalType | null,
+    line?: number, column?: number,
   ) {
-    super();
+    super(line, column);
     this.name = name;
     this.subroutineBlock = subroutineBlock;
     this.args = args;
@@ -870,8 +921,8 @@ class SubroutineDefinition extends Statement {
 class BoxDefinition extends Statement {
   designator: Expression | null;
   scope: ProgramBlock;
-  constructor(scope: ProgramBlock, designator?: Expression) {
-    super();
+  constructor(scope: ProgramBlock, designator?: Expression | null, line?: number, column?: number) {
+    super(line, column);
     this.scope = scope;
     this.designator =
       designator !== undefined && designator !== null ? designator : null;
@@ -882,8 +933,8 @@ class BoxDefinition extends Statement {
 class SubroutineCall extends Statement {
   subroutineName: Identifier;
   parameters: Parameters | null;
-  constructor(subroutineName: Identifier, parameters?: Parameters) {
-    super();
+  constructor(subroutineName: Identifier, parameters?: Parameters | null, line?: number, column?: number) {
+    super(line, column);
     this.subroutineName = subroutineName;
     this.parameters = parameters ? parameters : null;
   }
@@ -902,9 +953,10 @@ class BranchingStatement extends Statement {
   constructor(
     condition: Expression,
     trueBody: ProgramBlock,
-    falseBody?: ProgramBlock,
+    falseBody?: ProgramBlock | null,
+    line?: number, column?: number,
   ) {
-    super();
+    super(line, column);
     this.condition = condition;
     this.trueBody = trueBody;
     this.falseBody = falseBody;
@@ -929,9 +981,10 @@ class ForLoopStatement extends Statement {
     indexSet: IndexSet | Range | Expression,
     loopVarType: ClassicalType,
     parameter: Identifier,
-    body: ProgramBlock,
+    body: ProgramBlock,    
+    line?: number, column?: number
   ) {
-    super();
+    super(line, column);
     this.indexSet = indexSet;
     this.loopVarType = loopVarType;
     this.parameter = parameter;
@@ -947,18 +1000,26 @@ class ForLoopStatement extends Statement {
 class WhileLoopStatement extends Statement {
   condition: Expression;
   body: ProgramBlock;
-  constructor(condition: Expression, body: ProgramBlock) {
-    super();
+  constructor(condition: Expression, body: ProgramBlock, line?: number, column?: number) {
+    super(line, column);
     this.condition = condition;
     this.body = body;
   }
 }
 
 /** Class representing a break loop statement. */
-class BreakStatement extends Statement {}
+class BreakStatement extends Statement {
+  constructor(line?: number, column?: number) {
+    super(line, column);
+  }
+}
 
 /** Class representing a continue loop statement. */
-class ContinueStatement extends Statement {}
+class ContinueStatement extends Statement {
+  constructor(line?: number, column?: number) {
+    super(line, column);
+  }
+}
 
 /** Enum representing the available IO modifiers. */
 enum IOModifier {
@@ -970,8 +1031,8 @@ enum IOModifier {
 class IODeclaration extends Statement {
   modifier: IOModifier;
   classicalType: ClassicalDeclaration;
-  constructor(modifier: IOModifier, classicalType: ClassicalDeclaration) {
-    super();
+  constructor(modifier: IOModifier, classicalType: ClassicalDeclaration, line?: number, column?: number) {
+    super(line, column);
     this.modifier = modifier;
     this.classicalType = classicalType;
   }
@@ -985,9 +1046,11 @@ class SwitchStatement extends Statement {
   constructor(
     controlExpression: Expression,
     cases: Array<CaseStatement>,
-    defaultBlock?: DefaultStatement,
+    defaultBlock?: DefaultStatement | null,
+    line?: number,
+    column?: number,
   ) {
-    super();
+    super(line, column);
     this.controlExpression = controlExpression;
     this.cases = cases;
     this.defaultBlock = defaultBlock ? defaultBlock : null;
@@ -998,8 +1061,8 @@ class SwitchStatement extends Statement {
 class CaseStatement extends Statement {
   labels: Array<Expression>;
   body: ProgramBlock;
-  constructor(labels: Array<Expression>, body: ProgramBlock) {
-    super();
+  constructor(labels: Array<Expression>, body: ProgramBlock, line?: number, column?: number) {
+    super(line, column);
     this.labels = labels;
     this.body = body;
   }
@@ -1008,8 +1071,8 @@ class CaseStatement extends Statement {
 /** Class representing the default case in a swtich statement. */
 class DefaultStatement extends Statement {
   body: ProgramBlock;
-  constructor(body: ProgramBlock) {
-    super();
+  constructor(body: ProgramBlock, line?: number, column?: number) {
+    super(line, column);
     this.body = body;
   }
 }

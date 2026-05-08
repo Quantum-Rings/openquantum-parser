@@ -50,7 +50,7 @@ export const msdAst = [
       new QuantumGateCall(new Identifier("h"), [new Identifier("q")], null, []),
       new ReturnStatement([new QuantumMeasurement([new Identifier("q")])]),
     ]),
-    new Parameters([[new QuantumDeclaration(new Identifier("q"), null)]]),
+    new Parameters([new QuantumDeclaration(new Identifier("q"), null)]),
     new BitType(null),
   ),
   new SubroutineDefinition(
@@ -630,13 +630,11 @@ export const msdAst = [
       new ReturnStatement([new Identifier("success")]),
     ]),
     new Parameters([
-      [new QuantumDeclaration(new Identifier("magic"), new IntegerLiteral(10))],
-      [
-        new QuantumDeclaration(
-          new Identifier("scratch"),
-          new IntegerLiteral(3),
-        ),
-      ],
+      new QuantumDeclaration(new Identifier("magic"), new IntegerLiteral(10)),
+      new QuantumDeclaration(
+        new Identifier("scratch"),
+        new IntegerLiteral(3),
+      ),
     ]),
     new BoolType(),
   ),
@@ -679,13 +677,11 @@ export const msdAst = [
       ),
     ]),
     new Parameters([
-      [new QuantumDeclaration(new Identifier("magic"), new IntegerLiteral(10))],
-      [
-        new QuantumDeclaration(
-          new Identifier("scratch"),
-          new IntegerLiteral(3),
-        ),
-      ],
+      new QuantumDeclaration(new Identifier("magic"), new IntegerLiteral(10)),
+      new QuantumDeclaration(
+        new Identifier("scratch"),
+        new IntegerLiteral(3),
+      ),
     ]),
     null,
   ),
@@ -916,13 +912,11 @@ export const msdAst = [
         null,
         false,
       ),
-      [new QuantumDeclaration(new Identifier("work"), new IntegerLiteral(33))],
-      [
-        new QuantumDeclaration(
-          new Identifier("buffer"),
-          new Identifier("buffer_size"),
-        ),
-      ],
+      new QuantumDeclaration(new Identifier("work"), new IntegerLiteral(33)),
+      new QuantumDeclaration(
+        new Identifier("buffer"),
+        new Identifier("buffer_size"),
+      ),
     ]),
     null,
   ),
@@ -983,13 +977,11 @@ export const msdAst = [
         null,
         false,
       ),
-      [new QuantumDeclaration(new Identifier("q"), null)],
-      [
-        new QuantumDeclaration(
-          new Identifier("buffer"),
-          new Identifier("buffer_size"),
-        ),
-      ],
+      new QuantumDeclaration(new Identifier("q"), null),
+      new QuantumDeclaration(
+        new Identifier("buffer"),
+        new Identifier("buffer_size"),
+      ),
     ]),
     null,
   ),

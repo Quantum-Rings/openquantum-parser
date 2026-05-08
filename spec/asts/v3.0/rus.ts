@@ -92,8 +92,8 @@ export const rusAst = [
       new ReturnStatement([new Identifier("b")]),
     ]),
     new Parameters([
-      [new QuantumDeclaration(new Identifier("anc"), new IntegerLiteral(2))],
-      [new QuantumDeclaration(new Identifier("psi"), null)],
+      new QuantumDeclaration(new Identifier("anc"), new IntegerLiteral(2)),
+      new QuantumDeclaration(new Identifier("psi"), null),
     ]),
     new BitType(new IntegerLiteral(2)),
   ),
@@ -141,7 +141,9 @@ export const rusAst = [
     new Identifier("rz"),
     [new Identifier("input_qubit")],
     new Parameters([
-      new Arithmetic(ArithmeticOp.MINUS, new Pi(), [
+      new Arithmetic(
+        ArithmeticOp.MINUS,
+        new Pi(),
         new TrigFunction(
           TrigFunctionTypes.ARCCOS,
           new Arithmetic(
@@ -150,8 +152,7 @@ export const rusAst = [
             new IntegerLiteral(5),
           ),
         ),
-        1,
-      ]),
+      ),
     ]),
     [],
   ),

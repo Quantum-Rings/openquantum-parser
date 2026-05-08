@@ -68,20 +68,18 @@ export const scqecAst = [
   new ExternSignature(
     new Identifier("zfirst"),
     new Parameters([
-      [
-        new ClassicalDeclaration(
-          new BitType(
-            new Arithmetic(
-              ArithmeticOp.MINUS,
-              new Identifier("n"),
-              new IntegerLiteral(1),
-            ),
+      new ClassicalDeclaration(
+        new BitType(
+          new Arithmetic(
+            ArithmeticOp.MINUS,
+            new Identifier("n"),
+            new IntegerLiteral(1),
           ),
-          null,
-          null,
-          false,
         ),
-      ],
+        null,
+        null,
+        false,
+      ),
       new ClassicalDeclaration(
         new IntType(new IntegerLiteral(32)),
         null,
@@ -100,20 +98,18 @@ export const scqecAst = [
   new ExternSignature(
     new Identifier("send"),
     new Parameters([
-      [
-        new ClassicalDeclaration(
-          new BitType(
-            new Arithmetic(
-              ArithmeticOp.MINUS,
-              new Identifier("n"),
-              new IntegerLiteral(1),
-            ),
+      new ClassicalDeclaration(
+        new BitType(
+          new Arithmetic(
+            ArithmeticOp.MINUS,
+            new Identifier("n"),
+            new IntegerLiteral(1),
           ),
-          null,
-          null,
-          false,
         ),
-      ],
+        null,
+        null,
+        false,
+      ),
       new ClassicalDeclaration(
         new IntType(new IntegerLiteral(32)),
         null,
@@ -138,14 +134,12 @@ export const scqecAst = [
   new ExternSignature(
     new Identifier("zlast"),
     new Parameters([
-      [
-        new ClassicalDeclaration(
-          new BitType(new Identifier("n")),
-          null,
-          null,
-          false,
-        ),
-      ],
+      new ClassicalDeclaration(
+        new BitType(new Identifier("n")),
+        null,
+        null,
+        false,
+      ),
       new ClassicalDeclaration(
         new IntType(new IntegerLiteral(32)),
         null,
@@ -321,16 +315,14 @@ export const scqecAst = [
       ),
     ]),
     new Parameters([
-      [
-        new QuantumDeclaration(
-          new Identifier("ancilla"),
-          new Arithmetic(
-            ArithmeticOp.MINUS,
-            new Identifier("n"),
-            new IntegerLiteral(1),
-          ),
+      new QuantumDeclaration(
+        new Identifier("ancilla"),
+        new Arithmetic(
+          ArithmeticOp.MINUS,
+          new Identifier("n"),
+          new IntegerLiteral(1),
         ),
-      ],
+      ),
     ]),
     null,
   ),
@@ -636,17 +628,15 @@ export const scqecAst = [
       ]),
     ]),
     new Parameters([
-      [new QuantumDeclaration(new Identifier("data"), new Identifier("n"))],
-      [
-        new QuantumDeclaration(
-          new Identifier("ancilla"),
-          new Arithmetic(
-            ArithmeticOp.MINUS,
-            new Identifier("n"),
-            new IntegerLiteral(1),
-          ),
+      new QuantumDeclaration(new Identifier("data"), new Identifier("n")),
+      new QuantumDeclaration(
+        new Identifier("ancilla"),
+        new Arithmetic(
+          ArithmeticOp.MINUS,
+          new Identifier("n"),
+          new IntegerLiteral(1),
         ),
-      ],
+      ),
     ]),
     new BitType(
       new Arithmetic(

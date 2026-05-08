@@ -230,6 +230,8 @@ class Parser {
     this.index = 0;
     this.machineFloatWidth = defaultFloatWidth ? defaultFloatWidth : 64;
     this.machineIntSize = machineIntSize ? machineIntSize : 32;
+
+    this.stdGates();
   }
 
   /**
@@ -368,13 +370,13 @@ class Parser {
         return [[qregNode], qregConsumed];
       }
       case Token.Break:
-        return [[new BreakStatement()], 1];
+        return [[new BreakStatement(token[2], token[3])], 1];
       case Token.Reset: {
         const [resetNode, resetConsumed] = this.resetStatement(offset);
         return [[resetNode], resetConsumed];
       }
       case Token.Continue:
-        return [[new ContinueStatement()], 1];
+        return [[new ContinueStatement(token[2], token[3])], 1];
       case Token.Let: {
         const [letNode, letConsumed] = this.aliasStatement(offset);
         return [[letNode], letConsumed];
@@ -440,12 +442,13 @@ class Parser {
       case Token.Rotl: {
         const [expr, exprConsumed] = this.binaryExpression(offset + 1);
         let consumed = exprConsumed + 1;
-        const [math, mathConsumed] = this.createMathOrTrigFunction(
+        const [mathNode, mathConsumed] = this.createMathOrTrigFunction(
           token[0],
           expr,
+          token[2],
+          token[3],
         );
-        consumed += mathConsumed;
-        return [[math], consumed];
+        return [[mathNode], consumed];
       }
       case Token.Opaque: {
         let consumed = 1;
@@ -458,7 +461,7 @@ class Parser {
         return [[], consumed];
       }
       case Token.DurationOf: {
-        const [durationOfNOde, consumed] = this.durationOf(offset);
+        const [durationOfNOde, consumed] = this.durationOf(offset, token[2], token[3]);
         return [[durationOfNOde], consumed];
       }
       case Token.Dollar:
@@ -587,12 +590,14 @@ class Parser {
   defcalGrammarDeclaration(
     offset: number,
   ): [CalibrationGrammarDeclaration, number] {
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     const consumed = 1;
     if (
       this.matchNext(offset + consumed, [Token.String, Token.Semicolon])
     ) {
       return [
-        new CalibrationGrammarDeclaration(this.tokens[offset + consumed][1].toString()),
+        new CalibrationGrammarDeclaration(this.tokens[offset + consumed][1].toString(), line, column),
         consumed + 2,
       ];
     }
@@ -648,7 +653,7 @@ class Parser {
     }
 
     return [
-      new ClassicalDeclaration(classicalType, id, initialValue, isConstParam),
+      new ClassicalDeclaration(classicalType, id, initialValue, isConstParam, classicalType.line, classicalType.column),
       consumed,
     ];
   }
@@ -681,7 +686,7 @@ class Parser {
       offset + consumed,
     );
     consumed += typeConsumed;
-    return [new IODeclaration(modifier, classicalDeclaration), consumed];
+    return [new IODeclaration(modifier, classicalDeclaration, this.tokens[offset][2], this.tokens[offset][3]), consumed];
   }
 
   /**
@@ -693,13 +698,15 @@ class Parser {
     offset: number,
   ): [Expression, number] {
     const token = this.tokens[offset];
+    const locLine = token[2];
+    const locCol = token[3];
     let consumed = 1;
 
     switch (token[0]) {
       case Token.NNInteger: {
         if (this.isImaginary(offset + consumed)) {
           return [
-            new ImaginaryLiteral(`${token[1].toString()}im`),
+            new ImaginaryLiteral(`${token[1].toString()}im`, locLine, locCol),
             consumed + 1,
           ];
         } else if (this.isDuration(offset + consumed)) {
@@ -707,36 +714,38 @@ class Parser {
             new DurationLiteral(
               Number(token[1]),
               this.tokens[offset + consumed][1].toString() as DurationUnit,
+              locLine,
+              locCol,
             ),
             consumed + 1,
           ];
         }
-        return [new IntegerLiteral(Number(token[1])), consumed];
+        return [new IntegerLiteral(Number(token[1]), locLine, locCol), consumed];
       }
       case Token.Integer: {
         if (this.isImaginary(offset + consumed)) {
           return [
-            new ImaginaryLiteral(`${token[1].toString()}im`),
+            new ImaginaryLiteral(`${token[1].toString()}im`, locLine, locCol),
             consumed + 1,
           ];
         }
-        return [new IntegerLiteral(token[1].toString()), consumed];
+        return [new IntegerLiteral(token[1].toString(), locLine, locCol), consumed];
       }
       case Token.BinaryLiteral:
       case Token.OctalLiteral:
       case Token.HexLiteral:
       case Token.ScientificNotation:
-        return [new NumericLiteral(token[1].toString()), consumed];
+        return [new NumericLiteral(token[1].toString(), locLine, locCol), consumed];
       case Token.Real:
         if (this.isImaginary(offset + consumed)) {
           return [
-            new ImaginaryLiteral(`${token[1].toString()}im`),
+            new ImaginaryLiteral(`${token[1].toString()}im`, locLine, locCol),
             consumed + 1,
           ];
         }
-        return [new FloatLiteral(Number(token[1])), consumed];
+        return [new FloatLiteral(Number(token[1]), locLine, locCol), consumed];
       case Token.BoolLiteral:
-        return [new BooleanLiteral(token[1] === "true"), consumed];
+        return [new BooleanLiteral(token[1] === "true", locLine, locCol), consumed];
       case Token.Arccos:
       case Token.Arcsin:
       case Token.Arctan:
@@ -755,41 +764,39 @@ class Parser {
       case Token.Rotl: {
         const [funcExpr, funcConsumed] = this.unaryExpression(offset + 1);
         consumed += funcConsumed;
-        return [
-          this.createMathOrTrigFunction(token[0], funcExpr),
-          consumed,
-        ];
+        const [mathNode, mathConsumed] = this.createMathOrTrigFunction(token[0], funcExpr, locLine, locCol);
+        return [mathNode, consumed];
       }
       case Token.Id:
         // Handle array identifiers, identifiers, and subscripted identifiers
         if (this.matchNext(offset + 1, [Token.LSParen])) {
           if (this.isArray(offset)) {
             const [arrayAccess, arrayAccessConsumed] =
-              this.parseArrayAccess(offset);
+              this.parseArrayAccess(offset, locLine, locCol);
             return [arrayAccess, arrayAccessConsumed];
           } else {
-            const identifier = new Identifier(token[1].toString());
+            const identifier = new Identifier(token[1].toString(), locLine, locCol);
             const [subscript, subscriptConsumed] = this.parseSubscript(
               offset + 1,
             );
             consumed += subscriptConsumed;
             return [
-              new SubscriptedIdentifier(identifier.name, subscript),
+              new SubscriptedIdentifier(identifier.name, subscript, locLine, locCol),
               consumed,
             ];
           }
         }
-        return [new Identifier(token[1].toString()), consumed];
+        return [new Identifier(token[1].toString(), locLine, locCol), consumed];
       case Token.Pi:
-        return [new Pi(), consumed];
+        return [new Pi(locLine, locCol), consumed];
       case Token.Euler:
-        return [new Euler(), consumed];
+        return [new Euler(locLine, locCol), consumed];
       case Token.Tau:
-        return [new Tau(), consumed];
+        return [new Tau(locLine, locCol), consumed];
       case Token.String:
-        return [new BitstringLiteral(token[1].toString()), consumed];
+        return [new BitstringLiteral(token[1].toString(), locLine, locCol), consumed];
       case Token.DurationOf:
-        return this.durationOf(offset);
+        return this.durationOf(offset, locLine, locCol);
       case Token.Dollar:
       case Token.HardwareQubit:
         return this.parseHardwareQubit(offset);
@@ -797,7 +804,7 @@ class Parser {
         return this.sizeOf(offset);
       case Token.UnaryOp: {
         const [expr, exprConsumed] = this.unaryExpression(offset + 1);
-        return [new Unary(token[1] as UnaryOp, expr), consumed + exprConsumed];
+        return [new Unary(token[1] as UnaryOp, expr, locLine, locCol), consumed + exprConsumed];
       }
       case Token.LParen: {
         let i = 1;
@@ -865,14 +872,14 @@ class Parser {
         );
 
         if (token[0] === Token.BinaryOp) {
-          leftExpr = new Binary(token[1] as BinaryOp, leftExpr, rightExpr);
+          leftExpr = new Binary(token[1] as BinaryOp, leftExpr, rightExpr, token[2], token[3]);
         } else if (token[0] === Token.UnaryOp && token[1] === "-") {
-          leftExpr = new Arithmetic(ArithmeticOp.MINUS, leftExpr, rightExpr);
+          leftExpr = new Arithmetic(ArithmeticOp.MINUS, leftExpr, rightExpr, token[2], token[3]);
         } else {
           leftExpr = new Arithmetic(
             token[1] as ArithmeticOp,
             leftExpr,
-            rightExpr,
+            rightExpr, token[2], token[3]
           );
         }
         consumed += rightConsumed;
@@ -893,6 +900,8 @@ class Parser {
     offset: number,
   ): [AssignmentStatement, number] {
     let consumed = 0;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     const [lhs, lhsConsumed] = this.unaryExpression(offset);
     consumed += lhsConsumed;
 
@@ -922,11 +931,11 @@ class Parser {
       switch (operatorToken) {
         case Token.CompoundArithmeticOp:
           op = operator.slice(0, -1) as ArithmeticOp;
-          expression = new Arithmetic(op, lhs, rhs);
+          expression = new Arithmetic(op, lhs, rhs, line, column);
           break;
         case Token.CompoundBinaryOp:
           op = operator.slice(0, -1) as BinaryOp;
-          expression = new Binary(op, lhs, rhs);
+          expression = new Binary(op, lhs, rhs, line, column);
           break;
         default:
           throwParserError(
@@ -940,6 +949,7 @@ class Parser {
         new AssignmentStatement(
           lhs as SubscriptedIdentifier | Identifier,
           expression,
+          line, column
         ),
         consumed,
       ];
@@ -982,7 +992,7 @@ class Parser {
     // consumed++;
 
     return [
-      new AssignmentStatement(lhs as SubscriptedIdentifier, rhs),
+      new AssignmentStatement(lhs as SubscriptedIdentifier, rhs, line, column),
       consumed,
     ];
   }
@@ -996,6 +1006,8 @@ class Parser {
     offset: number,
   ): [QuantumDeclaration, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     const isQubit = this.tokens[offset][0] === Token.Qubit;
 
     let size: Expression | null = null;
@@ -1028,7 +1040,7 @@ class Parser {
       );
     }
 
-    const identifier = new Identifier(this.tokens[offset + consumed][1] as string);
+    const identifier = new Identifier(this.tokens[offset + consumed][1] as string, line, column);
     consumed++;
 
     // Check for size after identifier if not already set (supports flexible order)
@@ -1070,7 +1082,7 @@ class Parser {
       consumed++;
     }
 
-    return [new QuantumDeclaration(identifier as Identifier, size), consumed];
+    return [new QuantumDeclaration(identifier as Identifier, size, line, column), consumed];
   }
 
   /**
@@ -1082,6 +1094,8 @@ class Parser {
     offset: number,
   ): [QuantumMeasurementAssignment | QuantumMeasurement, number] {
     let consumed = 0;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
 
     // Legacy syntax: measure qubit|qubit[] -> bit|bit[];
     if (this.matchNext(offset + consumed, [Token.Measure])) {
@@ -1115,7 +1129,7 @@ class Parser {
           );
         }
       }
-      const measurement = new QuantumMeasurement(qubitIdentifiers);
+      const measurement = new QuantumMeasurement(qubitIdentifiers, line, column);
 
       // If there's an arrow, build a QuantumMeasurementAssignment
       if (this.matchNext(offset + consumed, [Token.Arrow])) {
@@ -1138,6 +1152,7 @@ class Parser {
           new QuantumMeasurementAssignment(
             classicalBit as Identifier,
             measurement,
+            line, column
           ),
           consumed,
         ];
@@ -1202,11 +1217,12 @@ class Parser {
 
       const measurement = new QuantumMeasurement([
         qubitIdentifier as Identifier | HardwareQubit,
-      ]);
+      ], line, column);
       return [
         new QuantumMeasurementAssignment(
           classicalBit as Identifier,
           measurement,
+          line, column
         ),
         consumed,
       ];
@@ -1222,6 +1238,8 @@ class Parser {
     offset: number,
   ): [ReturnStatement, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     let expression: Array<Expression | QuantumMeasurement> | undefined = undefined;
 
     if (!this.matchNext(offset + consumed, [Token.Semicolon])) {
@@ -1230,7 +1248,7 @@ class Parser {
       consumed += exprConsumed;
     }
 
-    return [new ReturnStatement(expression), consumed];
+    return [new ReturnStatement(expression, line, column), consumed];
   }
 
   /**
@@ -1242,6 +1260,8 @@ class Parser {
     offset: number,
   ): [ExternSignature, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     if (!this.matchNext(offset + consumed, [Token.Id])) {
       throwParserError(
         BadSubroutineError,
@@ -1285,7 +1305,7 @@ class Parser {
     consumed++;
 
     return [
-      new ExternSignature(identifier as Identifier, externParams, returnType),
+      new ExternSignature(identifier as Identifier, externParams, returnType, line, column),
       consumed,
     ];
   }
@@ -1299,6 +1319,8 @@ class Parser {
     offset: number,
   ): [SubroutineDefinition, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
 
     if (!this.matchNext(offset + consumed, [Token.Id])) {
       throwParserError(
@@ -1351,6 +1373,7 @@ class Parser {
         body as SubroutineBlock,
         params,
         returnType,
+        line, column
       ),
       consumed,
     ];
@@ -1365,6 +1388,8 @@ class Parser {
     offset: number,
   ): [SubroutineCall, number] {
     let consumed = 0;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     if (!this.matchNext(offset + consumed, [Token.Id])) {
       throwParserError(
         BadSubroutineError,
@@ -1400,7 +1425,7 @@ class Parser {
     }
 
     return [
-      new SubroutineCall(subroutineName as Identifier, callParams),
+      new SubroutineCall(subroutineName as Identifier, callParams, line, column),
       consumed,
     ];
   }
@@ -1414,6 +1439,8 @@ class Parser {
     offset: number,
   ): [QuantumGateDefinition, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
 
     if (!this.matchNext(offset + consumed, [Token.Id])) {
       throwParserError(
@@ -1470,6 +1497,7 @@ class Parser {
         params,
         qubits,
         body as QuantumBlock,
+        line, column
       ),
       consumed,
     ];
@@ -1484,6 +1512,8 @@ class Parser {
     offset: number,
   ): [QuantumGateCall, number] {
     let consumed = 0;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     const modifiers: Array<QuantumGateModifier> = [];
 
     // Parse modifier(s)
@@ -1546,6 +1576,7 @@ class Parser {
         qubits,
         callParams,
         modifiers,
+        line, column
       ),
       consumed,
     ];
@@ -1618,8 +1649,12 @@ class Parser {
     offset: number,
   ): [HardwareQubit, number] {
     let consumed = 0;
-    if (this.matchNext(offset, [Token.HardwareQubit])) {
-      return [new HardwareQubit(Number(this.tokens[offset][1])), 1];
+
+    if (this.matchNext(offset + consumed, [Token.HardwareQubit])) {
+      const num = Number(this.tokens[offset + consumed][1]);
+      const line = this.tokens[offset + consumed][2];
+      const column = this.tokens[offset + consumed][3];
+      return [new HardwareQubit(num, line, column), 1];
     }
 
     if (!this.matchNext(offset + consumed, [Token.Dollar])) {
@@ -1639,7 +1674,7 @@ class Parser {
         "expected non-negative integer for hardware qubit",
       );
     }
-    return [new HardwareQubit(Number(this.tokens[offset + consumed][1])), consumed + 1];
+    return [new HardwareQubit(Number(this.tokens[offset + consumed][1]), this.tokens[offset][2], this.tokens[offset][3]), consumed + 1];
   }
 
   /**
@@ -1651,6 +1686,8 @@ class Parser {
     offset: number,
   ): [QuantumGateModifier, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     const modifierToken = this.tokens[offset][0];
     let modifier: QuantumGateModifierName;
     let argument: Expression | null = null;
@@ -1704,7 +1741,7 @@ class Parser {
     }
     consumed++;
 
-    return [new QuantumGateModifier(modifier, argument), consumed];
+    return [new QuantumGateModifier(modifier, argument, line, column), consumed];
   }
 
   /**
@@ -1716,7 +1753,9 @@ class Parser {
     offset: number,
   ): [Parameters, number] {
     let consumed = 0;
-    const args: Array<Expression> = [];
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
+    const args: Array<any> = [];
 
     if (this.matchNext(offset, [Token.LParen])) {
       consumed++;
@@ -1725,7 +1764,7 @@ class Parser {
           const [qubitParam, qubitConsumed] = this.parseNode(
             offset + consumed,
           );
-          args.push(qubitParam);
+          args.push(qubitParam[0]);
           consumed += qubitConsumed;
         } else if (
           this.matchNext(offset + consumed, [Token.Bit]) ||
@@ -1734,7 +1773,7 @@ class Parser {
           const [bitParam, bitConsumed] = this.parseNode(
             offset + consumed,
           );
-          args.push(bitParam);
+          args.push(bitParam[0]);
           consumed += bitConsumed;
         } else if (isTypeToken(this.tokens[offset + consumed][0])) {
           const [param, paramConsumed] = this.classicalDeclaration(
@@ -1773,7 +1812,7 @@ class Parser {
       consumed++;
     }
 
-    return [new Parameters(args), consumed];
+    return [new Parameters(args, line, column), consumed];
   }
 
   /**
@@ -1785,6 +1824,8 @@ class Parser {
     offset: number,
   ): [ArrayReference, number] {
     let consumed = 0;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     let modifier: ArrayReferenceModifier;
     switch (this.tokens[offset + consumed][0]) {
       case Token.Mutable:
@@ -1808,7 +1849,7 @@ class Parser {
     );
     consumed += arrayConsumed;
 
-    return [new ArrayReference(arrayNode, modifier), consumed];
+    return [new ArrayReference(arrayNode, modifier, line, column), consumed];
   }
 
   /**
@@ -1820,6 +1861,8 @@ class Parser {
     offset: number,
   ): [AliasStatement, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
 
     if (!this.matchNext(offset + consumed, [Token.Id])) {
       throwParserError(
@@ -1860,7 +1903,7 @@ class Parser {
     consumed++;
 
     return [
-      new AliasStatement(identifier as Identifier, aliasExpression),
+      new AliasStatement(identifier as Identifier, aliasExpression, line, column),
       consumed,
     ];
   }
@@ -1874,6 +1917,8 @@ class Parser {
     offset: number,
   ): [QuantumReset, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
 
     if (
       !this.matchNext(offset + consumed, [Token.Id]) &&
@@ -1900,7 +1945,7 @@ class Parser {
     }
     consumed++;
 
-    return [new QuantumReset(id), consumed];
+    return [new QuantumReset(id, line, column), consumed];
   }
 
   /**
@@ -1912,8 +1957,10 @@ class Parser {
     offset: number,
   ): [Expression | Range | IndexSet, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     let start: Expression;
-    let step: Expression = new IntegerLiteral(1);
+    let step: Expression = new IntegerLiteral(1, line, column);
     let stop: Expression | undefined = undefined;
 
     if (this.matchNext(offset + consumed, [Token.LCParen])) {
@@ -2008,7 +2055,7 @@ class Parser {
       );
     }
 
-    return [new Range(start, stop, step), consumed];
+    return [new Range(start, stop, step, line, column), consumed];
   }
 
   /**
@@ -2020,6 +2067,8 @@ class Parser {
     offset: number,
   ): [Expression, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     let widthExpr: Expression | null = null;
     if (this.matchNext(offset + consumed, [Token.LSParen])) {
       consumed++;
@@ -2061,8 +2110,8 @@ class Parser {
       );
     }
     consumed++;
-    const castType = this.createClassicalType(this.tokens[offset][0], widthExpr);
-    return [new Cast(castType, castExpr), consumed];
+    const castType = this.createClassicalType(this.tokens[offset][0], line, column, widthExpr);
+    return [new Cast(castType, castExpr, line, column), consumed];
   }
 
   /**
@@ -2074,6 +2123,8 @@ class Parser {
     offset: number,
   ): [BranchingStatement, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     if (!this.matchNext(offset + consumed, [Token.LParen])) {
       throwParserError(
         MissingBraceError,
@@ -2114,7 +2165,7 @@ class Parser {
       consumed += elseBodyConsumed;
     }
 
-    return [new BranchingStatement(condition, trueBody, falseBody), consumed];
+    return [new BranchingStatement(condition, trueBody, falseBody, line, column), consumed];
   }
 
   /**
@@ -2126,6 +2177,8 @@ class Parser {
     offset: number,
   ): [ForLoopStatement, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
 
     // Parse the type of the loop variable
     const [loopVarType, loopVarTypeConsumed] = this.parseClassicalType(
@@ -2175,7 +2228,7 @@ class Parser {
     consumed += bodyConsumed;
 
     return [
-      new ForLoopStatement(indexSet, loopVarType, loopVar as Identifier, body),
+      new ForLoopStatement(indexSet, loopVarType, loopVar as Identifier, body, line, column),
       consumed,
     ];
   }
@@ -2189,6 +2242,8 @@ class Parser {
     offset: number,
   ): [WhileLoopStatement, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
 
     if (!this.matchNext(offset + consumed, [Token.LParen])) {
       throwParserError(
@@ -2218,7 +2273,7 @@ class Parser {
     const [body, bodyConsumed] = this.programBlock(offset + consumed);
     consumed += bodyConsumed;
 
-    return [new WhileLoopStatement(condition, body), consumed];
+    return [new WhileLoopStatement(condition, body, line, column), consumed];
   }
 
   /**
@@ -2230,11 +2285,13 @@ class Parser {
     offset: number,
   ): [QuantumBarrier, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     const [qubits, qubitsConsumed] = this.parseQubitList(
       offset + consumed,
     );
     consumed += qubitsConsumed;
-    return [new QuantumBarrier(qubits), consumed];
+    return [new QuantumBarrier(qubits, line, column), consumed];
   }
 
   /**
@@ -2245,6 +2302,8 @@ class Parser {
   box(offset: number): [BoxDefinition, number] {
     let consumed = 1;
     let designator: Expression | null = null;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
 
     if (this.matchNext(offset + consumed, [Token.LSParen])) {
       consumed++;
@@ -2267,7 +2326,7 @@ class Parser {
     const [scope, scopeConsumed] = this.programBlock(offset + consumed);
     consumed += scopeConsumed;
 
-    return [new BoxDefinition(scope, designator), consumed];
+    return [new BoxDefinition(scope, designator, line, column), consumed];
   }
 
   /**
@@ -2279,6 +2338,8 @@ class Parser {
     offset: number,
   ): [ArrayDeclaration, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     if (!this.matchNext(offset + consumed, [Token.LSParen])) {
       throwParserError(
         MissingBraceError,
@@ -2357,6 +2418,7 @@ class Parser {
         dimensions,
         identifier as Identifier,
         initializer,
+        line, column
       ),
       consumed,
     ];
@@ -2371,6 +2433,8 @@ class Parser {
     offset: number,
   ): [ArrayInitializer | Expression, number] {
     let consumed = 0;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     if (!this.matchNext(offset, [Token.LCParen])) {
       const [expr, exprConsumed] = this.binaryExpression(
         offset + consumed,
@@ -2409,7 +2473,7 @@ class Parser {
     }
     consumed++;
 
-    return [new ArrayInitializer(values), consumed];
+    return [new ArrayInitializer(values, line, column), consumed];
   }
 
   /**
@@ -2419,6 +2483,8 @@ class Parser {
    */
   parseArrayAccess(
     offset: number,
+    line: number,
+    column: number
   ): [ArrayAccess, number] {
     let consumed = 0;
     if (!this.matchNext(offset + consumed, [Token.Id])) {
@@ -2429,7 +2495,7 @@ class Parser {
         "expected identifier for array access",
       );
     }
-    const identifier = new Identifier(this.tokens[offset][1].toString());
+    const identifier = new Identifier(this.tokens[offset][1].toString(), line, column);
     consumed++;
 
     let indices: Array<Expression> | Range = [];
@@ -2463,7 +2529,7 @@ class Parser {
           } else {
             stop = index2;
           }
-          indices = new Range(index1, stop, step);
+          indices = new Range(index1, stop, step, line, column);
           break;
         } else if (!this.matchNext(offset + consumed, [Token.RSParen])) {
           throwParserError(
@@ -2486,7 +2552,7 @@ class Parser {
       consumed++;
     }
 
-    return [new ArrayAccess(identifier, indices), consumed];
+    return [new ArrayAccess(identifier, indices, line, column), consumed];
   }
 
   /**
@@ -2498,6 +2564,8 @@ class Parser {
     offset: number,
   ): [SwitchStatement, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
 
     if (!this.matchNext(offset + consumed, [Token.LParen])) {
       throwParserError(
@@ -2578,7 +2646,7 @@ class Parser {
     }
     consumed++;
 
-    return [new SwitchStatement(controlExpr, cases, defaultCase), consumed];
+    return [new SwitchStatement(controlExpr, cases, defaultCase, line, column), consumed];
   }
 
   /**
@@ -2590,6 +2658,8 @@ class Parser {
     offset: number,
   ): [CaseStatement, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     const labels: Array<Expression> = [];
 
     while (!this.matchNext(offset + consumed, [Token.LCParen])) {
@@ -2614,7 +2684,7 @@ class Parser {
     const [body, bodyConsumed] = this.programBlock(offset + consumed);
     consumed += bodyConsumed;
 
-    return [new CaseStatement(labels, body), consumed];
+    return [new CaseStatement(labels, body, line, column), consumed];
   }
 
   /**
@@ -2626,6 +2696,8 @@ class Parser {
     offset: number,
   ): [DefaultStatement, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
 
     if (!this.matchNext(offset + consumed, [Token.LCParen])) {
       throwParserError(
@@ -2639,7 +2711,7 @@ class Parser {
     const [body, bodyConsumed] = this.programBlock(offset + consumed);
     consumed += bodyConsumed;
 
-    return [new DefaultStatement(body), consumed];
+    return [new DefaultStatement(body, line, column), consumed];
   }
 
   /**
@@ -2650,6 +2722,8 @@ class Parser {
   delay(offset: number): [QuantumDelay, number] {
     let consumed = 1;
 
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     if (!this.matchNext(offset + consumed, [Token.LSParen])) {
       throwParserError(
         MissingBraceError,
@@ -2689,7 +2763,7 @@ class Parser {
     }
     consumed++;
 
-    return [new QuantumDelay(duration, qubits), consumed];
+    return [new QuantumDelay(duration, qubits, line, column), consumed];
   }
 
   /**
@@ -2697,8 +2771,9 @@ class Parser {
    * @param offset - The current token index.
    * @return A DurationOf node and the number of tokens consumed.
    */
-  durationOf(offset: number): [DurationOf, number] {
+  durationOf(offset: number, line: number, column: number): [DurationOf, number] {
     let consumed = 1;
+
 
     if (!this.matchNext(offset + consumed, [Token.LParen])) {
       throwParserError(
@@ -2735,7 +2810,7 @@ class Parser {
       consumed++;
     }
 
-    return [new DurationOf(scope), consumed];
+    return [new DurationOf(scope, line, column), consumed];
   }
 
   /**
@@ -2746,6 +2821,8 @@ class Parser {
   sizeOf(offset: number): [SizeOf, number] {
     let consumed = 1;
     let dimensions: Expression | null = null;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     if (!this.matchNext(offset + consumed, [Token.LParen])) {
       throwParserError(
         MissingBraceError,
@@ -2778,7 +2855,7 @@ class Parser {
     }
     consumed++;
 
-    return [new SizeOf(arrayId as Identifier, dimensions), consumed];
+    return [new SizeOf(arrayId as Identifier, dimensions, line, column), consumed];
   }
 
   /**
@@ -2790,6 +2867,8 @@ class Parser {
     offset: number,
   ): [ProgramBlock, number] {
     const statements: (Statement | Expression)[] = [];
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     let consumed = 0;
     let braceCount = 0;
 
@@ -2836,7 +2915,7 @@ class Parser {
         consumed++;
       }
     }
-    return [new ProgramBlock(statements), consumed];
+    return [new ProgramBlock(statements, line, column), consumed];
   }
 
   /**
@@ -2847,11 +2926,13 @@ class Parser {
   include(offset: number): [Include, number] {
     let filename: string;
     const consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     if (
       this.matchNext(offset + consumed, [Token.String, Token.Semicolon])
     ) {
       filename = this.tokens[offset + consumed][1].toString();
-      return [new Include(filename), consumed + 2];
+      return [new Include(filename, line, column), consumed + 2];
     }
     throwParserError(
       BadStringLiteralError,
@@ -2869,6 +2950,8 @@ class Parser {
   versionHeader(offset: number): [Version, number] {
     let version: OpenQASMVersion;
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     if (this.matchNext(offset + consumed, [Token.NNInteger, Token.Semicolon])) {
       version = new OpenQASMVersion(Number(this.tokens[offset + consumed][1]));
       if (!version.isVersion3()) {
@@ -2880,7 +2963,7 @@ class Parser {
         );
       }
       consumed += 2;
-      return [new Version(version), consumed];
+      return [new Version(version, line, column), consumed];
     } else if (this.matchNext(offset + consumed, [Token.Real, Token.Semicolon])) {
       const versionSplits = this.tokens[offset + consumed][1].toString().split(".");
       version = new OpenQASMVersion(
@@ -2896,7 +2979,7 @@ class Parser {
         );
       }
       consumed += 2;
-      return [new Version(version), consumed];
+      return [new Version(version, line, column), consumed];
     }
     throwParserError(
       UnsupportedOpenQASMVersionError,
@@ -2916,6 +2999,8 @@ class Parser {
   ): [ClassicalType, number] {
     let typeToken = this.tokens[offset][0];
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     let width: Expression | undefined;
     let isComplex = false;
 
@@ -2957,10 +3042,10 @@ class Parser {
       consumed++;
     }
 
-    const classicalType = this.createClassicalType(typeToken, width);
+    const classicalType = this.createClassicalType(typeToken, line, column, width);
 
     if (isComplex) {
-      return [new ComplexType(classicalType as FloatType), consumed];
+      return [new ComplexType(classicalType as FloatType, line, column), consumed];
     } else {
       return [classicalType, consumed];
     }
@@ -2995,6 +3080,8 @@ class Parser {
     offset: number,
   ): [IndexSet, number] {
     let consumed = 1;
+    const line = this.tokens[offset][2];
+    const column = this.tokens[offset][3];
     const values: Expression[] = [];
 
     while (!this.matchNext(offset + consumed, [Token.RCParen])) {
@@ -3017,7 +3104,7 @@ class Parser {
     }
     consumed++;
 
-    return [new IndexSet(values), consumed];
+    return [new IndexSet(values, line, column), consumed];
   }
 
   /**
@@ -3028,27 +3115,28 @@ class Parser {
    */
   createClassicalType(
     token: Token,
-    width?: Expression | number,
+    line: number, column: number,
+    width?: Expression | number | undefined,
   ): ClassicalType {
     switch (token) {
       case Token.Int:
-        return new IntType(width || this.machineIntSize);
+        return new IntType(width || this.machineIntSize, line, column);
       case Token.UInt:
-        return new UIntType(width || this.machineIntSize);
+        return new UIntType(width || this.machineIntSize, line, column);
       case Token.Float:
-        return new FloatType(width || this.machineFloatWidth);
+        return new FloatType(width || this.machineFloatWidth, line, column);
       case Token.Bool:
-        return new BoolType();
+        return new BoolType(line, column);
       case Token.Bit:
-        return new BitType(width);
+        return new BitType(width, line, column);
       case Token.CReg:
-        return new BitType(width);
+        return new BitType(width, line, column);
       case Token.Stretch:
-        return new StretchType();
+        return new StretchType(line, column);
       case Token.Duration:
-        return new DurationType();
+        return new DurationType(line, column);
       case Token.Angle:
-        return new AngleType(width);
+        return new AngleType(width, line, column);
       default:
         throwParserError(
           BadClassicalTypeError,
@@ -3068,40 +3156,42 @@ class Parser {
   createMathOrTrigFunction(
     token: Token,
     expr: Expression,
+    line: number,
+    column: number,
   ): [MathFunction | TrigFunction, number] {
     switch (token) {
       case Token.Arccos:
-        return [new TrigFunction(TrigFunctionTypes.ARCCOS, expr), 1];
+        return [new TrigFunction(TrigFunctionTypes.ARCCOS, expr, line, column), 1];
       case Token.Arcsin:
-        return [new TrigFunction(TrigFunctionTypes.ARCSIN, expr), 1];
+        return [new TrigFunction(TrigFunctionTypes.ARCSIN, expr, line, column), 1];
       case Token.Arctan:
-        return [new TrigFunction(TrigFunctionTypes.ARCTAN, expr), 1];
+        return [new TrigFunction(TrigFunctionTypes.ARCTAN, expr, line, column), 1];
       case Token.Cos:
-        return [new TrigFunction(TrigFunctionTypes.COS, expr), 1];
+        return [new TrigFunction(TrigFunctionTypes.COS, expr, line, column), 1];
       case Token.Sin:
-        return [new TrigFunction(TrigFunctionTypes.SIN, expr), 1];
+        return [new TrigFunction(TrigFunctionTypes.SIN, expr, line, column), 1];
       case Token.Tan:
-        return [new TrigFunction(TrigFunctionTypes.TAN, expr), 1];
+        return [new TrigFunction(TrigFunctionTypes.TAN, expr, line, column), 1];
       case Token.Ceiling:
-        return [new MathFunction(MathFunctionTypes.CEILING, expr), 1];
+        return [new MathFunction(MathFunctionTypes.CEILING, expr, line, column), 1];
       case Token.Exp:
-        return [new MathFunction(MathFunctionTypes.EXP, expr), 1];
+        return [new MathFunction(MathFunctionTypes.EXP, expr, line, column), 1];
       case Token.Floor:
-        return [new MathFunction(MathFunctionTypes.FLOOR, expr), 1];
+        return [new MathFunction(MathFunctionTypes.FLOOR, expr, line, column), 1];
       case Token.Log:
-        return [new MathFunction(MathFunctionTypes.LOG, expr), 1];
+        return [new MathFunction(MathFunctionTypes.LOG, expr, line, column), 1];
       case Token.Mod:
-        return [new MathFunction(MathFunctionTypes.MOD, expr), 1];
+        return [new MathFunction(MathFunctionTypes.MOD, expr, line, column), 1];
       case Token.Popcount:
-        return [new MathFunction(MathFunctionTypes.POPCOUNT, expr), 1];
+        return [new MathFunction(MathFunctionTypes.POPCOUNT, expr, line, column), 1];
       case Token.Pow:
-        return [new MathFunction(MathFunctionTypes.POW, expr), 1];
+        return [new MathFunction(MathFunctionTypes.POW, expr, line, column), 1];
       case Token.Rotl:
-        return [new MathFunction(MathFunctionTypes.ROTL, expr), 1];
+        return [new MathFunction(MathFunctionTypes.ROTL, expr, line, column), 1];
       case Token.Rotr:
-        return [new MathFunction(MathFunctionTypes.ROTR, expr), 1];
+        return [new MathFunction(MathFunctionTypes.ROTR, expr, line, column), 1];
       case Token.Sqrt:
-        return [new MathFunction(MathFunctionTypes.SQRT, expr), 1];
+        return [new MathFunction(MathFunctionTypes.SQRT, expr, line, column), 1];
       default:
         throwParserError(
           BadExpressionError,

@@ -35,14 +35,12 @@ export const gateteleportAst = [
   new ExternSignature(
     new Identifier("vote"),
     new Parameters([
-      [
-        new ClassicalDeclaration(
-          new BitType(new Identifier("n")),
-          null,
-          null,
-          false,
-        ),
-      ],
+      new ClassicalDeclaration(
+        new BitType(new Identifier("n")),
+        null,
+        null,
+        false,
+      ),
     ]),
     new BitType(null),
   ),
@@ -75,7 +73,7 @@ export const gateteleportAst = [
       new ReturnStatement([new Identifier("r")]),
     ]),
     new Parameters([
-      [new QuantumDeclaration(new Identifier("d"), new IntegerLiteral(3))],
+      new QuantumDeclaration(new Identifier("d"), new IntegerLiteral(3)),
     ]),
     new BitType(null),
   ),

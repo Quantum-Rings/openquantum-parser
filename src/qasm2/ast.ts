@@ -35,13 +35,32 @@
 import { OpenQASMVersion } from "../version";
 
 /** Base class representing a basic AST node. */
-class AstNode {}
+class AstNode {
+  line?: number;
+  column?: number;
+  // Allow arrays to be assigned for backwards compatibility with existing test specs
+  [key: number]: any;
+  constructor(line?: number, column?: number) {
+    Object.defineProperty(this, 'line', {
+      value: line,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+    Object.defineProperty(this, 'column', {
+      value: column,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+  }
+}
 
 /** Class representing the version statement. */
 class Version extends AstNode {
   version: OpenQASMVersion;
-  constructor(version: OpenQASMVersion) {
-    super();
+  constructor(version: OpenQASMVersion, line?: number, column?: number) {
+    super(line, column);
     this.version = version;
   }
 }
@@ -49,8 +68,8 @@ class Version extends AstNode {
 /** Class representing an include statement. */
 class Include extends AstNode {
   filename: string;
-  constructor(filename: string) {
-    super();
+  constructor(filename: string, line?: number, column?: number) {
+    super(line, column);
     this.filename = filename;
   }
 }
@@ -59,8 +78,8 @@ class Include extends AstNode {
 class QReg extends AstNode {
   size: number;
   id: string;
-  constructor(id: string, size: number) {
-    super();
+  constructor(id: string, size: number, line?: number, column?: number) {
+    super(line, column);
     this.id = id;
     this.size = size;
   }
@@ -70,8 +89,8 @@ class QReg extends AstNode {
 class CReg extends AstNode {
   size: number;
   id: string;
-  constructor(id: string, size: number) {
-    super();
+  constructor(id: string, size: number, line?: number, column?: number) {
+    super(line, column);
     this.id = id;
     this.size = size;
   }
@@ -80,8 +99,8 @@ class CReg extends AstNode {
 /** Class representing an identifier. */
 class Id extends AstNode {
   id: string;
-  constructor(id: string) {
-    super();
+  constructor(id: string, line?: number, column?: number) {
+    super(line, column);
     this.id = id;
   }
 }
@@ -89,8 +108,8 @@ class Id extends AstNode {
 /** Class representing a barrier. */
 class Barrier extends AstNode {
   qubits: Array<[string, number?]>;
-  constructor(qubits: Array<[string, number?]>) {
-    super();
+  constructor(qubits: Array<[string, number?]>, line?: number, column?: number) {
+    super(line, column);
     this.qubits = qubits;
   }
 }
@@ -98,8 +117,8 @@ class Barrier extends AstNode {
 /** Class representing a variable. */
 class Variable extends AstNode {
   value: string;
-  constructor(value: string) {
-    super();
+  constructor(value: string, line?: number, column?: number) {
+    super(line, column);
     this.value = value || null;
   }
 }
@@ -115,8 +134,10 @@ class Measure extends AstNode {
     dest_register: string,
     src_index?: number,
     dest_index?: number,
+    line?: number,
+    column?: number
   ) {
-    super();
+    super(line, column);
     this.src_index = src_index != undefined ? src_index : null;
     this.src_register = src_register;
     this.dest_index = dest_index != undefined ? dest_index : null;
@@ -133,8 +154,10 @@ class ApplyGate extends AstNode {
     name: string,
     qubits: Array<[string, number?]>,
     params: Array<any>,
+    line?: number,
+    column?: number
   ) {
-    super();
+    super(line, column);
     this.name = name;
     this.qubits = qubits;
     this.params = params;
@@ -152,8 +175,10 @@ class Gate extends AstNode {
     registers: Array<string>,
     params: Array<string>,
     nodes: Array<AstNode>,
+    line?: number,
+    column?: number
   ) {
-    super();
+    super(line, column);
     this.name = name;
     this.registers = registers;
     this.params = params;
@@ -170,8 +195,10 @@ class Opaque extends AstNode {
     name: string,
     qubits: Array<[string, number?]>,
     params: Array<string> = [],
+    line?: number,
+    column?: number
   ) {
-    super();
+    super(line, column);
     this.name = name;
     this.qubits = qubits;
     this.params = params;
@@ -183,8 +210,8 @@ class If extends AstNode {
   register: string;
   param: number;
   gate: AstNode;
-  constructor(register: string, param: number, gate: AstNode) {
-    super();
+  constructor(register: string, param: number, gate: AstNode, line?: number, column?: number) {
+    super(line, column);
     this.register = register;
     this.param = param;
     this.gate = gate;
@@ -192,46 +219,46 @@ class If extends AstNode {
 }
 
 /** Class representing minus. */
-class Minus extends AstNode {}
+class Minus extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing plus. */
-class Plus extends AstNode {}
+class Plus extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing times. */
-class Times extends AstNode {}
+class Times extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing power. */
-class Power extends AstNode {}
+class Power extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing division. */
-class Divide extends AstNode {}
+class Divide extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing pi. */
-class Pi extends AstNode {}
+class Pi extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing the square root. */
-class Sqrt extends AstNode {}
+class Sqrt extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing natural logarithm. */
-class Ln extends AstNode {}
+class Ln extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing exponentiation. */
-class Exp extends AstNode {}
+class Exp extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing tagnent. */
-class Tan extends AstNode {}
+class Tan extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing cosine. */
-class Cos extends AstNode {}
+class Cos extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing sine. */
-class Sin extends AstNode {}
+class Sin extends AstNode { constructor(line?: number, column?: number) { super(line, column); } }
 
 /** Class representing an integer. */
 class NNInteger extends AstNode {
   value: number;
-  constructor(value: number) {
-    super();
+  constructor(value: number, line?: number, column?: number) {
+    super(line, column);
     this.value = value;
   }
 }
@@ -239,8 +266,8 @@ class NNInteger extends AstNode {
 /** Class representing a real. */
 class Real extends AstNode {
   value: number;
-  constructor(value: number) {
-    super();
+  constructor(value: number, line?: number, column?: number) {
+    super(line, column);
     this.value = value;
   }
 }

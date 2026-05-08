@@ -169,29 +169,31 @@ class Parser {
     allowVariables = false,
   ): Array<AstNode> {
     const token = this.tokens[offset];
+    const line = token?.[2];
+    const column = token?.[3];
     if (!token) return [];
     switch (token[0]) {
       case Token.Include:
-        return [this.include(offset + 1)];
+        return [this.include(offset + 1, line, column)];
       case Token.OpenQASM:
-        return [this.versionHeader(offset + 1)];
+        return [this.versionHeader(offset + 1, line, column)];
       case Token.QReg:
-        return [this.qreg(offset + 1)];
+        return [this.qreg(offset + 1, line, column)];
       case Token.CReg:
-        return [this.creg(offset + 1)];
+        return [this.creg(offset + 1, line, column)];
       case Token.Barrier:
-        return [this.barrier(offset + 1)];
+        return [this.barrier(offset + 1, line, column)];
       case Token.Measure:
-        return [this.measure(offset + 1)];
+        return [this.measure(offset + 1, line, column)];
       case Token.Id:
         if (
           !(token[1].toString().indexOf("QASM") != -1) &&
           !(token[1].toString().indexOf("include") != -1)
         ) {
           if (this.gates.includes(token[1].toString())) {
-            return [this.application(offset, token[1].toString())];
+            return [this.application(offset, token[1].toString(), line, column) as unknown as AstNode];
           } else if (allowVariables) {
-            return [new Variable(token[1].toString())];
+            return [new Variable(token[1].toString(), line, column)];
           } else {
             throw new BadGateError("Bad gate", token[2], token[3], token[4]);
           }
@@ -199,39 +201,39 @@ class Parser {
           return [];
         }
       case Token.Gate:
-        return [this.gate(offset + 1)];
+        return [this.gate(offset + 1, line, column)];
       case Token.Opaque:
-        return [this.opaque(offset + 1)];
+        return [this.opaque(offset + 1, line, column)];
       case Token.If:
-        return [this.conditional(offset + 1)];
+        return [this.conditional(offset + 1, line, column)];
       case Token.Power:
-        return [new Power()];
+        return [new Power(line, column)];
       case Token.Divide:
-        return [new Divide()];
+        return [new Divide(line, column)];
       case Token.Times:
-        return [new Times()];
+        return [new Times(line, column)];
       case Token.Plus:
-        return [new Plus()];
+        return [new Plus(line, column)];
       case Token.Minus:
-        return [new Minus()];
+        return [new Minus(line, column)];
       case Token.Pi:
-        return [new Pi()];
+        return [new Pi(line, column)];
       case Token.Sin:
-        return [new Sin()];
+        return [new Sin(line, column)];
       case Token.Cos:
-        return [new Cos()];
+        return [new Cos(line, column)];
       case Token.Exp:
-        return [new Exp()];
+        return [new Exp(line, column)];
       case Token.Ln:
-        return [new Ln()];
+        return [new Ln(line, column)];
       case Token.Sqrt:
-        return [new Sqrt()];
+        return [new Sqrt(line, column)];
       case Token.Tan:
-        return [new Tan()];
+        return [new Tan(line, column)];
       case Token.NNInteger:
-        return [new NNInteger(Number(token[1]))];
+        return [new NNInteger(Number(token[1]), line, column)];
       case Token.Real:
-        return [new Real(Number(token[1]))];
+        return [new Real(Number(token[1]), line, column)];
     }
   }
 
@@ -265,7 +267,7 @@ class Parser {
    * @param offset - The current token index.
    * @return An AST node representing the quantum register.
    */
-  qreg(offset: number): AstNode {
+  qreg(offset: number, line: number, column: number): AstNode {
     if (
       this.matchNext(offset, [
         Token.Id,
@@ -280,7 +282,7 @@ class Parser {
         throw new BadQregError("Bad qreg", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
       }
       const size = this.tokens[offset + 2][1];
-      return new QReg(id.toString(), Number(size));
+      return new QReg(id.toString(), Number(size), line, column);
     } else {
       throw new BadQregError("Bad qreg", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
     }
@@ -291,7 +293,7 @@ class Parser {
    * @param offset - The current token index.
    * @return An AST node representing the classical register.
    */
-  creg(offset: number): AstNode {
+  creg(offset: number, line: number, column: number): AstNode {
     if (
       this.matchNext(offset, [
         Token.Id,
@@ -306,7 +308,7 @@ class Parser {
         throw new BadCregError("Bad creg", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
       }
       const size = this.tokens[offset + 2][1];
-      return new CReg(id.toString(), Number(size));
+      return new CReg(id.toString(), Number(size), line, column);
     } else {
       throw new BadCregError("Bad creg", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
     }
@@ -317,7 +319,7 @@ class Parser {
    * @param offset - The current token index.
    * @return An AST node representing the conditional.
    */
-  conditional(offset: number): AstNode {
+  conditional(offset: number, line: number, column: number): AstNode {
     if (
       this.matchNext(offset, [
         Token.LParen,
@@ -331,7 +333,7 @@ class Parser {
       const val = this.tokens[offset + 3][1];
       // Recursively call parseNode with updated offset
       const node = this.parseNode(offset + 5);
-      return new If(id.toString(), Number(val), node);
+      return new If(id.toString(), Number(val), node as unknown as AstNode, line, column);
     } else {
       throw new BadConditionalError("Bad conditional", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
     }
@@ -342,11 +344,11 @@ class Parser {
    * @param offset - The current token index.
    * @return An AST node representing the barrier.
    */
-  barrier(offset: number): AstNode {
+  barrier(offset: number, line: number, column: number): AstNode {
     try {
       const [args, consumed] = this.matchArgList(offset);
       if (args.length > 0 && this.matchNext(offset + consumed, [Token.Semicolon])) {
-        return new Barrier(args);
+        return new Barrier(args, line, column);
       }
     } catch (e) {
       if (e instanceof BadArgumentError) {
@@ -361,7 +363,7 @@ class Parser {
    * @param offset - The current token index.
    * @return An AST node representing the measurement.
    */
-  measure(offset: number): AstNode {
+  measure(offset: number, line: number, column: number): AstNode {
     let first_id: string;
     let second_id: string;
     let first_index: number;
@@ -405,13 +407,13 @@ class Parser {
       throw new BadMeasurementError("Bad measurement", this.tokens[current][2], this.tokens[current][3], this.tokens[current][4]);
     }
     if (first_index != undefined && second_index != undefined) {
-      return new Measure(first_id, second_id, first_index, second_index);
+      return new Measure(first_id, second_id, first_index, second_index, line, column);
     } else if (first_index != undefined) {
-      return new Measure(first_id, second_id, first_index, null);
+      return new Measure(first_id, second_id, first_index, undefined, line, column);
     } else if (second_index != undefined) {
-      return new Measure(first_id, second_id, null, second_index);
+      return new Measure(first_id, second_id, undefined, second_index, line, column);
     }
-    return new Measure(first_id, second_id);
+    return new Measure(first_id, second_id, undefined, undefined, line, column);
   }
 
   /**
@@ -422,6 +424,8 @@ class Parser {
   application(
     offset: number,
     op: string,
+    line: number,
+    column: number
   ): Array<AstNode> {
     let params: Array<any> = [];
     const list: Array<[string, number?]> = [];
@@ -445,7 +449,21 @@ class Parser {
     for (const arg in args) {
       list.push(args[arg]);
     }
-    applications.push(new ApplyGate(op, list, params));
+    applications.push(new ApplyGate(op, list, params, line, column));
+
+    Object.defineProperty(applications, "line", {
+      value: line,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+    Object.defineProperty(applications, "column", {
+      value: column,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+
     return applications;
   }
 
@@ -597,11 +615,11 @@ class Parser {
    * @param offset - The current token index.
    * @return An Include node representing the include statement.
    */
-  include(offset: number): Include {
+  include(offset: number, line: number, column: number): Include {
     let filename: string;
     if (this.matchNext(offset, [Token.String, Token.Semicolon])) {
       filename = this.tokens[offset][1].toString();
-      return new Include(filename);
+      return new Include(filename, line, column);
     }
     throw new BadIncludeError("Bad include", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
   }
@@ -611,14 +629,14 @@ class Parser {
    * @param offset - The current token index.
    * @return A Version node representing the version statement.
    */
-  versionHeader(offset: number): Version {
+  versionHeader(offset: number, line: number, column: number): Version {
     let version: OpenQASMVersion;
     if (this.matchNext(offset, [Token.NNInteger, Token.Semicolon])) {
       version = new OpenQASMVersion(Number(this.tokens[offset][1]));
       if (!version.isVersion2()) {
         throw new UnsupportedOpenQASMVersionError("Unsupported version", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
       }
-      return new Version(version);
+      return new Version(version, line, column);
     } else if (this.matchNext(offset, [Token.Real, Token.Semicolon])) {
       const versionSplits = this.tokens[offset][1].toString().split(".");
       version = new OpenQASMVersion(
@@ -628,7 +646,7 @@ class Parser {
       if (!version.isVersion2()) {
         throw new UnsupportedOpenQASMVersionError("Unsupported version", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
       }
-      return new Version(version);
+      return new Version(version, line, column);
     }
     throw new UnsupportedOpenQASMVersionError("Unsupported version", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
   }
@@ -661,7 +679,7 @@ class Parser {
    * @param offset - The current token index.
    * @return An AST node representing the gate.
    */
-  gate(offset: number): AstNode {
+  gate(offset: number, line: number, column: number): AstNode {
     let name: string;
     let params: Array<string>;
     let current = offset;
@@ -689,7 +707,7 @@ class Parser {
     current += consumedRegs;
     const applications: Array<AstNode> = this.sub(current);
     this.gates.push(name);
-    return new Gate(name, registers, params, applications);
+    return new Gate(name, registers, params, applications, line, column);
   }
 
   /**
@@ -697,7 +715,7 @@ class Parser {
    * @param offset - The current token index.
    * @return An AST node representing the opaque declaration.
    */
-  opaque(offset: number): AstNode {
+  opaque(offset: number, line: number, column: number): AstNode {
     let name: string;
     let params: Array<string>;
     let qubits: Array<[string, number?]> = [];
@@ -728,7 +746,7 @@ class Parser {
       throw new BadGateError("Bad gate", this.tokens[current][2], this.tokens[current][3], this.tokens[current][4]);
     }
 
-    return new Opaque(name, qubits, params);
+    return new Opaque(name, qubits, params, line, column);
   }
 
   /**

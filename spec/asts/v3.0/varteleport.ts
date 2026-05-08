@@ -57,7 +57,7 @@ export const varteleportAst = [
       ),
     ]),
     new Parameters([
-      [new QuantumDeclaration(new Identifier("q"), new IntegerLiteral(2))],
+      new QuantumDeclaration(new Identifier("q"), new IntegerLiteral(2)),
     ]),
     null,
   ),
@@ -67,7 +67,7 @@ export const varteleportAst = [
       new QuantumReset(new Identifier("q")),
       new QuantumGateCall(new Identifier("h"), [new Identifier("q")], null, []),
     ]),
-    new Parameters([[new QuantumDeclaration(new Identifier("q"), null)]]),
+    new Parameters([new QuantumDeclaration(new Identifier("q"), null)]),
     null,
   ),
   new QuantumDeclaration(new Identifier("input_qubit"), null),
