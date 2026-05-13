@@ -9,6 +9,8 @@ import * as fs from "fs";
 import { OpenQASMVersion, OpenQASMMajorVersion } from "./version";
 import { lex } from "./lexer";
 import { parse } from "./parser";
+import { PragmaStatement } from "./qasm3/ast";
+export { PragmaStatement };
 
 /**
  * Result of parsing OpenQASM code, including the AST and detected version.
@@ -172,4 +174,60 @@ function getDetailedOutput(object) {
   } else {
     return object;
   }
+}
+
+/**
+ * Recursively converts an AST node back to QASM source code.
+ * @param node - The AST node to convert.
+ * @param version - The OpenQASM version.
+ * @returns The QASM source string.
+ */
+function toQasm(node: any, version: number): string {
+  if (Array.isArray(node)) return node.map(n => toQasm(n, version)).join('\n');
+  if (!node || typeof node !== 'object') return String(node);
+
+  switch (node.constructor.name) {
+    case 'PragmaStatement':
+      return `#pragma ${node.name}${node.command ? ' ' + node.command : ''};`;
+    case 'Version':
+      return `OPENQASM ${node.version.major}.${node.version.minor};`;
+    case 'Include':
+      return `include ${node.filename};`;
+    // Add more cases as needed for full unparse
+    default:
+      // Fallback: recurse on properties, skipping metadata
+      return Object.entries(node).filter(([k]) => k !== 'line' && k !== 'column').map(([k,v]) => toQasm(v, version)).join(' ');
+  }
+}
+
+/**
+ * Unparses an AST back to QASM source code.
+ *
+ * @group Main Functions
+ * @param ast - The AST array to unparse.
+ * @param version - The OpenQASM version (defaults to 3.0).
+ * @returns The QASM source string.
+ *
+ * @example Unparsing an AST
+ * ```typescript
+ * import { parseString, unparse } from 'qasm-ts';
+ *
+ * const qasm = 'OPENQASM 3.0;\n#pragma braket verbatim;';
+ * const result = parseString(qasm);
+ * const unparsed = unparse(result.ast, 3);
+ * console.log(unparsed); // 'OPENQASM 3.0;\n#pragma braket verbatim;'
+ * ```
+ */
+export function unparse(ast: any[], version?: number): string {
+  return toQasm(ast, version || 3);
+}
+
+/**
+ * Type guard to safely identify a PragmaStatement in the AST.
+ * @param node - The AST node to check.
+ * @returns True if the node is a PragmaStatement.
+ */
+export function isPragmaStatement(node: any): node is PragmaStatement {
+  return node !== null && typeof node === 'object' && 
+    (node.type === 'PragmaStatement' || node.__className__ === 'PragmaStatement' || node.constructor?.name === 'PragmaStatement');
 }

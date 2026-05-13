@@ -241,6 +241,10 @@ enum Token {
   CompoundBinaryOp,
   // 101; hardware qubit ($0, $1, etc)
   HardwareQubit,
+  // 102; hash symbol #
+  Hash,
+  // 103; pragma keyword
+  Pragma,
 }
 
 /**
@@ -251,7 +255,7 @@ enum Token {
  *
  * @internal
  */
-const lookupMap: object = {
+const lookupMap: Record<string, Token> = {
   pi: Token.Pi,
   π: Token.Pi,
   qreg: Token.QReg,
@@ -391,7 +395,7 @@ function lookup(ident: string): Token {
  * inverseLookup(Token.Pi);      // Returns 'pi'
  * ```
  */
-function inverseLookup(token: Token): string {
+function inverseLookup(token: Token): string | undefined {
   return Object.keys(lookupMap).find((ident) => lookupMap[ident] == token);
 }
 

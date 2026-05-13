@@ -126,6 +126,7 @@ import {
   SwitchStatement,
   CaseStatement,
   DefaultStatement,
+  PragmaStatement,
   ClassicalType,
   ArithmeticOp,
   Arithmetic,
@@ -282,7 +283,7 @@ class Parser {
    */
   parse(): Array<AstNode> {
     let ast: Array<AstNode> = [];
-    while (this.index < this.tokens.length - 1) {
+    while (this.index < this.tokens.length) {
       const [nodes, consumed] = this.parseNode(this.index);
       ast = ast.concat(nodes ? nodes : []);
       this.index += consumed;
@@ -548,6 +549,42 @@ class Parser {
           }
         }
         break;
+      case Token.Pragma: {
+        let consumed = 1;
+        const line = this.tokens[offset][2];
+        const col = this.tokens[offset][3];
+
+        const pragmaText = this.tokens[offset][1] as string;
+        let name = "";
+        let command = "";
+        
+        if (pragmaText) {
+          const match = pragmaText.match(/^(\S+)(?:\s+(.*))?$/);
+          if (match) {
+            name = match[1];
+            command = match[2] || "";
+          }
+        }
+
+        if (!name) {
+          throwParserError(
+            BadExpressionError,
+            this.tokens[offset],
+            this.index,
+            "expected pragma name",
+          );
+        }
+
+        if (
+          offset + consumed < this.tokens.length &&
+          this.tokens[offset + consumed][0] === Token.Semicolon &&
+          this.tokens[offset + consumed][2] === line
+        ) {
+          consumed++;
+        }
+
+        return [[new PragmaStatement(name, command, line, col)], consumed];
+      }
       default:
         return [[], 1];
     }
@@ -569,7 +606,7 @@ class Parser {
       return false;
     }
     while (i < expectedTokens.length) {
-      if (this.tokens[offset + i][0] != expectedTokens[i]) {
+      if (!this.tokens[offset + i] || this.tokens[offset + i][0] != expectedTokens[i]) {
         matches = false;
         break;
       }
@@ -906,7 +943,7 @@ class Parser {
     consumed += lhsConsumed;
 
     // Handle compound assignments
-    const operatorToken = this.tokens[offset + consumed][0];
+    const operatorToken = this.tokens[offset + consumed]?.[0];
     if (
       operatorToken === Token.CompoundArithmeticOp ||
       operatorToken === Token.CompoundBinaryOp
@@ -3214,7 +3251,7 @@ class Parser {
       i++;
     }
     return (
-      this.tokens[offset + i][0] === Token.EqualsAssmt && this.tokens[offset + i + 1][0] === Token.Measure
+      this.tokens[offset + i]?.[0] === Token.EqualsAssmt && this.tokens[offset + i + 1]?.[0] === Token.Measure
     );
   }
 
@@ -3229,7 +3266,7 @@ class Parser {
     ) {
       i++;
     }
-    return this.tokens[offset + i][0] === Token.EqualsAssmt;
+    return this.tokens[offset + i]?.[0] === Token.EqualsAssmt;
   }
 
   /** Checks whether an identifier is a quantum gate call. */

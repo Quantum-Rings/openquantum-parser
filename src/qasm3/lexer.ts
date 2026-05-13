@@ -204,7 +204,8 @@ class Lexer {
         !trimmedLine.startsWith("box") &&
         !trimmedLine.startsWith("array") &&
         !trimmedLine.startsWith("{") &&
-        !trimmedLine.startsWith("default")
+        !trimmedLine.startsWith("default") &&
+        !trimmedLine.startsWith("#pragma")
       ) {
         return [false, i + 1, this.lines[i]];
       }
@@ -589,18 +590,39 @@ class Lexer {
           result = [Token.Dollar];
         }
         break;
-      case "#":
-        if (
-          this.input[this.cursor] == "d" &&
-          this.input[this.cursor + 1] == "i" &&
-          this.input[this.cursor + 2] == "m"
-        ) {
-          this.readChar(3);
-          result = [Token.Dim];
-        } else {
-          result = this.readKeywordOrIdentifier(char);
-        }
-        break;
+       case "#":
+         if (
+           this.input[this.cursor] == "p" &&
+           this.input[this.cursor + 1] == "r" &&
+           this.input[this.cursor + 2] == "a" &&
+           this.input[this.cursor + 3] == "g" &&
+           this.input[this.cursor + 4] == "m" &&
+           this.input[this.cursor + 5] == "a"
+         ) {
+           this.readChar(6);
+           while (this.cursor < this.input.length && (this.peek() === " " || this.peek() === "\t")) {
+             this.cursor++;
+           }
+           let pragmaText = "";
+           while (this.cursor < this.input.length && !isNewline(this.peek())) {
+             pragmaText += this.readChar();
+           }
+           pragmaText = pragmaText.trimEnd();
+           if (pragmaText.endsWith(";")) {
+             pragmaText = pragmaText.slice(0, -1).trimEnd();
+           }
+           result = [Token.Pragma, pragmaText];
+         } else if (
+           this.input[this.cursor] == "d" &&
+           this.input[this.cursor + 1] == "i" &&
+           this.input[this.cursor + 2] == "m"
+         ) {
+           this.readChar(3);
+           result = [Token.Dim];
+         } else {
+           result = this.readKeywordOrIdentifier(char);
+         }
+         break;
       case "c":
         if (
           this.input[this.cursor] == "t" &&

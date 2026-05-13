@@ -137,11 +137,15 @@ class Parser {
   parse(): Array<AstNode> {
     let ast: Array<AstNode> = [];
     let i = 0;
-    while (i < this.tokens.length - 1) {
+    while (i < this.tokens.length) {
       const nodes = this.parseNode(i);
       ast = ast.concat(nodes ? nodes : []);
       while (i < this.tokens.length && !this.matchNext(i, [Token.Semicolon])) {
-        if (this.matchNext(i, [Token.LCParen])) {
+        if (
+          this.matchNext(i, [Token.LCParen]) &&
+          nodes.length > 0 &&
+          nodes[0] instanceof Gate
+        ) {
           while (i < this.tokens.length && !this.matchNext(i, [Token.RCParen])) {
             i++;
           }
@@ -253,7 +257,7 @@ class Parser {
       return false;
     }
     while (i < expectedTokens.length) {
-      if (this.tokens[offset + i][0] != expectedTokens[i]) {
+      if (!this.tokens[offset + i] || this.tokens[offset + i][0] != expectedTokens[i]) {
         matches = false;
         break;
       }

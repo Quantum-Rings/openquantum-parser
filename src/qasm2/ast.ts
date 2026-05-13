@@ -38,9 +38,11 @@ import { OpenQASMVersion } from "../version";
 class AstNode {
   line?: number;
   column?: number;
+  type?: string;
   // Allow arrays to be assigned for backwards compatibility with existing test specs
   [key: number]: any;
   constructor(line?: number, column?: number) {
+    this.type = this.constructor.name;
     Object.defineProperty(this, 'line', {
       value: line,
       enumerable: false,

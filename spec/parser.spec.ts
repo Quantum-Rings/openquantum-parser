@@ -6,6 +6,7 @@ import { tokenSet } from "./tokens";
 import { parse } from "../src/parser";
 import { AstNode as AstNode2 } from "../src/qasm2/ast";
 import { AstNode as AstNode3 } from "../src/qasm3/ast";
+import { parseString, unparse } from "../src/main";
 
 const genericTests = "spec/tokens/generic";
 
@@ -51,5 +52,18 @@ describe("parser", () => {
         });
       });
     });
+  });
+});
+
+describe('pragma support', () => {
+  it('should parse and unparse #pragma braket verbatim;', () => {
+    const qasm = 'OPENQASM 3.0;\n#pragma braket verbatim;';
+    const result = parseString(qasm, 3);
+    expect(result.ast.length).toBe(2);
+    expect(result.ast[1].constructor.name).toBe('PragmaStatement');
+    expect(result.ast[1].name).toBe('braket');
+    expect(result.ast[1].command).toBe('verbatim');
+    const unparsed = unparse(result.ast, 3);
+    expect(unparsed).toBe('OPENQASM 3.0;\n#pragma braket verbatim;');
   });
 });

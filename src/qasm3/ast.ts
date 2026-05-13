@@ -52,7 +52,9 @@ import { OpenQASMVersion } from "../version";
 class AstNode {
   line?: number;
   column?: number;
+  type: string;
   constructor(line?: number, column?: number) {
+    this.type = this.constructor.name;
     Object.defineProperty(this, 'line', {
       value: line,
       enumerable: false,
@@ -511,11 +513,11 @@ class Binary extends Expression {
 
 /** Class representing an cast expression. */
 class Cast extends Expression {
-  type: ClassicalType;
+  classicalType: ClassicalType;
   operand: Expression;
-  constructor(type: ClassicalType, operand: Expression, line?: number, column?: number) {
+  constructor(classicalType: ClassicalType, operand: Expression, line?: number, column?: number) {
     super(line, column);
-    this.type = type;
+    this.classicalType = classicalType;
     this.operand = operand;
   }
 }
@@ -1077,6 +1079,17 @@ class DefaultStatement extends Statement {
   }
 }
 
+/** Class representing a pragma statement. */
+class PragmaStatement extends Statement {
+  name: string;
+  command: string;
+  constructor(name: string, command: string, line?: number, column?: number) {
+    super(line, column);
+    this.name = name;
+    this.command = command;
+  }
+}
+
 export {
   AstNode,
   Statement,
@@ -1159,5 +1172,6 @@ export {
   SwitchStatement,
   CaseStatement,
   DefaultStatement,
+  PragmaStatement,
   ClassicalType,
 };
