@@ -72,6 +72,7 @@ import {
   NNInteger,
   Real,
   Variable,
+  Expression,
 } from "./ast";
 
 /**
@@ -127,6 +128,16 @@ class Parser {
       "cu1",
       "ccy",
       "ccz",
+      "rx",
+      "ry",
+      "rz",
+      "ch",
+      "crz",
+      "cu3",
+      "crx",
+      "cry",
+      "swap",
+      "cswap",
     ];
   }
 
@@ -141,11 +152,7 @@ class Parser {
       const nodes = this.parseNode(i);
       ast = ast.concat(nodes ? nodes : []);
       while (i < this.tokens.length && !this.matchNext(i, [Token.Semicolon])) {
-        if (
-          this.matchNext(i, [Token.LCParen]) &&
-          nodes.length > 0 &&
-          nodes[0] instanceof Gate
-        ) {
+        if (this.matchNext(i, [Token.LCParen])) {
           while (i < this.tokens.length && !this.matchNext(i, [Token.RCParen])) {
             i++;
           }
@@ -195,7 +202,7 @@ class Parser {
           !(token[1].toString().indexOf("include") != -1)
         ) {
           if (this.gates.includes(token[1].toString())) {
-            return [this.application(offset, token[1].toString(), line, column)];
+            return this.application(offset, token[1].toString(), line, column);
           } else if (allowVariables) {
             return [new Variable(token[1].toString(), line, column)];
           } else {
@@ -337,7 +344,7 @@ class Parser {
       const val = this.tokens[offset + 3][1];
       // Recursively call parseNode with updated offset
       const node = this.parseNode(offset + 5);
-      return new If(id.toString(), Number(val), node as unknown as AstNode, line, column);
+      return new If(id.toString(), Number(val), node[0], line, column);
     } else {
       throw new BadConditionalError("Bad conditional", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
     }
@@ -430,9 +437,10 @@ class Parser {
     op: string,
     line: number,
     column: number
-  ): AstNode {
+  ): Array<AstNode> {
     let params: Array<any> = [];
     const list: Array<[string, number?]> = [];
+    const applications: Array<AstNode> = [];
     let current = offset;
 
     if (this.tokens[current][1] == op) {
@@ -452,7 +460,22 @@ class Parser {
     for (const arg in args) {
       list.push(args[arg]);
     }
-    return new ApplyGate(op, list, params, line, column);
+    applications.push(new ApplyGate(op, list, params, line, column));
+
+    Object.defineProperty(applications, "line", {
+      value: line,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+    Object.defineProperty(applications, "column", {
+      value: column,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+
+    return applications;
   }
 
   /**
@@ -506,12 +529,12 @@ class Parser {
    */
   matchParamList(
     offset: number,
-  ): [Array<Array<any>>, number] {
-    const args: Array<Array<any>> = [];
-    let i: number = 0;
+  ): [Array<any>, number] {
+    const args: Array<any> = [];
     let current = offset;
-    args[0] = [];
     while (!this.matchNext(current, [Token.RParen])) {
+      const exprNodes: Array<AstNode> = [];
+      const start = current;
       while (
         !this.matchNext(current, [Token.Comma]) &&
         !this.matchNext(current, [Token.RParen])
@@ -520,15 +543,18 @@ class Parser {
           throw new BadParameterError("Bad parameter", this.tokens[current][2], this.tokens[current][3], this.tokens[current][4]);
         }
         const next = this.matchParam(current);
-        args[i].push(next);
+        exprNodes.push(next[0] || next);
         current++;
+      }
+      if (exprNodes.length === 1) {
+        args.push(exprNodes[0]);
+      } else if (exprNodes.length > 1) {
+        args.push(new Expression(exprNodes, this.tokens[start][2], this.tokens[start][3]));
       }
       if (this.matchNext(current, [Token.RParen])) {
         break;
       }
-      i++;
       current++;
-      args[i] = [];
     }
     // +1 to include the closing RParen in consumed count if needed, 
     // but the caller usually handles the closing token. 
@@ -734,6 +760,7 @@ class Parser {
       throw new BadGateError("Bad gate", this.tokens[current][2], this.tokens[current][3], this.tokens[current][4]);
     }
 
+    this.gates.push(name);
     return new Opaque(name, qubits, params, line, column);
   }
 

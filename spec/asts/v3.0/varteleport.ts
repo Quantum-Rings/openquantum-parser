@@ -139,8 +139,12 @@ export const varteleportAst = [
         null,
         false,
       ),
-      new SubroutineCall(new Identifier("bellprep"), null),
-      new Identifier("bp"),
+      new QuantumGateCall(
+        new Identifier("bellprep"),
+        [new Identifier("bp")],
+        null,
+        [],
+      ),
       new QuantumGateCall(
         new Identifier("cx"),
         [

@@ -274,6 +274,15 @@ class Real extends AstNode {
   }
 }
 
+/** Class representing a mathematical expression. */
+class Expression extends AstNode {
+  nodes: Array<AstNode>;
+  constructor(nodes: Array<AstNode>, line?: number, column?: number) {
+    super(line, column);
+    this.nodes = nodes;
+  }
+}
+
 export {
   AstNode,
   Version,
@@ -302,4 +311,5 @@ export {
   NNInteger,
   Real,
   Variable,
+  Expression,
 };

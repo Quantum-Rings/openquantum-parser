@@ -60,7 +60,7 @@ function throwLexerError(
  * @return Whether the character is numeric.
  */
 function isNumeric(c: string): boolean {
-  return c !== undefined && (c == "." || !isNaN(parseInt(c)));
+  return c !== undefined && (c == "." || c == "e" || c == "E" || c == "_" || !isNaN(parseInt(c)));
 }
 
 /**
@@ -255,8 +255,13 @@ class Lexer {
    */
   readNumeric = (): string => {
     let num = "";
-    while (this.cursor < this.input.length && isNumeric(this.peek())) {
+    let char = this.peek();
+    while (this.cursor < this.input.length && (isNumeric(char) || char === "e" || char === "E")) {
       num += this.readChar();
+      if ((char === "e" || char === "E") && (this.peek() === "-" || this.peek() === "+")) {
+        num += this.readChar();
+      }
+      char = this.peek();
     }
     return num;
   };
@@ -588,7 +593,9 @@ class Lexer {
           result = [lookup(literal), literal];
         } else if (isNumeric(char)) {
           const num = char + this.readNumeric();
-          if (num.indexOf(".") != -1) {
+          if (num.indexOf("e") != -1 || num.indexOf("E") != -1) {
+            result = [Token.Real, parseFloat(num)];
+          } else if (num.indexOf(".") != -1) {
             result = [Token.Real, parseFloat(num)];
           } else {
             result = [Token.NNInteger, parseFloat(num)];

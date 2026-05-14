@@ -145,4 +145,22 @@ describe("lexer", () => {
       });
     });
   });
+
+  describe("pragma lexing", () => {
+    it("should lex pragmas correctly", () => {
+      const qasm = "#pragma braket verbatim;";
+      const tokens = lex(qasm, 0, 3);
+      expect(tokens.length).toBeGreaterThan(0);
+      expect(tokens[0][0]).toBe(Qasm3Token.Pragma);
+      expect(tokens[0][1]).toBe("braket verbatim");
+    });
+
+    it("should lex pragmas with extra spaces", () => {
+      const qasm = "#  pragma  braket result;";
+      const tokens = lex(qasm, 0, 3);
+      expect(tokens.length).toBeGreaterThan(0);
+      expect(tokens[0][0]).toBe(Qasm3Token.Pragma);
+      expect(tokens[0][1]).toBe("braket result");
+    });
+  });
 });

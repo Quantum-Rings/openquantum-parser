@@ -222,7 +222,7 @@ class Parser {
     machineIntSize?: number,
   ) {
     this.tokens = tokens;
-    this.gates = new Set(["U", "gphase", "cnot"]);
+    this.gates = new Set(["U", "u", "gphase", "cnot"]);
     this.standardGates = new Set();
     this.customGates = new Set();
     this.subroutines = new Set();
@@ -516,6 +516,10 @@ class Parser {
         const [barrierNode, barrierConsumed] = this.barrier(offset);
         return [[barrierNode], barrierConsumed];
       }
+      case Token.LCParen: {
+        const [blockNode, blockConsumed] = this.programBlock(offset);
+        return [[blockNode], blockConsumed];
+      }
       case Token.Id:
         if (this.isQuantumGateCall(offset)) {
           const [gateCallNode, gateCallConsumed] = this.quantumGateCall(offset);
@@ -554,7 +558,7 @@ class Parser {
         const line = this.tokens[offset][2];
         const col = this.tokens[offset][3];
 
-        const pragmaText = this.tokens[offset][1] as string;
+        const pragmaText = token[1] as string;
         let name = "";
         let command = "";
         
@@ -567,23 +571,21 @@ class Parser {
         }
 
         if (!name) {
-          throwParserError(
-            BadExpressionError,
-            this.tokens[offset],
-            this.index,
-            "expected pragma name",
-          );
+          throwParserError(BadExpressionError, this.tokens[offset], this.index, "expected pragma name");
         }
-
+        
         if (
           offset + consumed < this.tokens.length &&
           this.tokens[offset + consumed][0] === Token.Semicolon &&
           this.tokens[offset + consumed][2] === line
         ) {
-          consumed++;
+            consumed++;
         }
 
         return [[new PragmaStatement(name, command, line, col)], consumed];
+      }
+      case Token.Hash: {
+        return [[], 1];
       }
       default:
         return [[], 1];
@@ -2907,22 +2909,10 @@ class Parser {
     const line = this.tokens[offset][2];
     const column = this.tokens[offset][3];
     let consumed = 0;
-    let braceCount = 0;
 
     if (this.matchNext(offset, [Token.LCParen])) {
       consumed++;
-      braceCount++;
-      while (braceCount > 0 && offset + consumed < this.tokens.length) {
-        if (this.matchNext(offset + consumed, [Token.LCParen])) {
-          braceCount++;
-        } else if (this.matchNext(offset + consumed, [Token.RCParen])) {
-          braceCount--;
-        }
-
-        if (braceCount === 0) {
-          break;
-        }
-
+      while (offset + consumed < this.tokens.length && !this.matchNext(offset + consumed, [Token.RCParen])) {
         const [node, nodeConsumed] = this.parseNode(offset + consumed);
         if (node && node.length > 0) {
           statements.push(node[0]);
@@ -2933,11 +2923,12 @@ class Parser {
           consumed++;
         }
       }
-      if (braceCount !== 0) {
+      if (!this.matchNext(offset + consumed, [Token.RCParen])) {
+        const errToken = offset + consumed < this.tokens.length ? this.tokens[offset + consumed] : this.tokens[this.tokens.length - 1];
         throwParserError(
           MissingBraceError,
-          this.tokens[offset + consumed],
-          this.index + consumed,
+          errToken,
+          (this.index + consumed) || this.tokens.length,
           "mismatched curly braces in program block",
         );
       }
@@ -3274,11 +3265,31 @@ class Parser {
     offset: number,
   ): boolean {
     const gateName = this.tokens[offset][1] as string;
-    return (
+    if (
       this.gates.has(gateName) ||
       this.standardGates.has(gateName) ||
       this.customGates.has(gateName)
-    );
+    ) {
+      return true;
+    }
+    const nextToken = this.tokens[offset + 1]?.[0];
+    if (nextToken === Token.Id || nextToken === Token.HardwareQubit || nextToken === Token.Dollar) {
+      return true;
+    }
+    if (nextToken === Token.LParen) {
+      let i = 2;
+      let parenCount = 1;
+      while (offset + i < this.tokens.length && parenCount > 0) {
+        if (this.tokens[offset + i][0] === Token.LParen) parenCount++;
+        else if (this.tokens[offset + i][0] === Token.RParen) parenCount--;
+        i++;
+      }
+      const afterParen = this.tokens[offset + i]?.[0];
+      if (afterParen === Token.Id || afterParen === Token.HardwareQubit || afterParen === Token.Dollar) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Checks whether an identifier is a subroutine call. */

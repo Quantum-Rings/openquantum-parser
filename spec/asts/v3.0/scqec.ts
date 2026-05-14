@@ -330,8 +330,12 @@ export const scqecAst = [
     new Identifier("cycle"),
     new ProgramBlock([
       new QuantumReset(new Identifier("ancilla")),
-      new SubroutineCall(new Identifier("hadamard_layer"), null),
-      new Identifier("ancilla"),
+      new QuantumGateCall(
+        new Identifier("hadamard_layer"),
+        [new Identifier("ancilla")],
+        null,
+        [],
+      ),
       new ForLoopStatement(
         new Range(
           new IntegerLiteral(0),
@@ -621,8 +625,12 @@ export const scqecAst = [
           ),
         ]),
       ),
-      new SubroutineCall(new Identifier("hadamard_layer"), null),
-      new Identifier("ancilla"),
+      new QuantumGateCall(
+        new Identifier("hadamard_layer"),
+        [new Identifier("ancilla")],
+        null,
+        [],
+      ),
       new ReturnStatement([
         new QuantumMeasurement([new Identifier("ancilla")]),
       ]),

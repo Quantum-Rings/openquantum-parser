@@ -65,7 +65,7 @@ function throwLexerError(
  * @return Whether the character is numeric.
  */
 function isNumeric(c: string): boolean {
-  return c !== undefined && (c == "." || c == "e" || c == "_" || !isNaN(parseInt(c)));
+  return c !== undefined && (c == "." || c == "e" || c == "E" || c == "_" || !isNaN(parseInt(c)));
 }
 
 /**
@@ -196,7 +196,7 @@ class Lexer {
         !trimmedLine.includes(";") &&
         !trimmedLine.startsWith("def") &&
         !trimmedLine.startsWith("if") &&
-        !trimmedLine.startsWith("else") &&
+        !trimmedLine.match(/^(?:}\s*)?else\b/) &&
         !trimmedLine.startsWith("for") &&
         !trimmedLine.startsWith("while") &&
         !trimmedLine.startsWith("switch") &&
@@ -205,7 +205,7 @@ class Lexer {
         !trimmedLine.startsWith("array") &&
         !trimmedLine.startsWith("{") &&
         !trimmedLine.startsWith("default") &&
-        !trimmedLine.startsWith("#pragma")
+        !trimmedLine.match(/^#\s*pragma/)
       ) {
         return [false, i + 1, this.lines[i]];
       }
@@ -294,9 +294,9 @@ class Lexer {
   readNumeric = (): string => {
     let num = "";
     let char = this.peek();
-    while (this.cursor < this.input.length && (isNumeric(char) || char === "e")) {
+    while (this.cursor < this.input.length && (isNumeric(char) || char === "e" || char === "E")) {
       num += this.readChar();
-      if (char === "e" && this.peek() === "-") {
+      if ((char === "e" || char === "E") && (this.peek() === "-" || this.peek() === "+")) {
         num += this.readChar();
       }
       char = this.peek();
@@ -590,16 +590,20 @@ class Lexer {
           result = [Token.Dollar];
         }
         break;
-       case "#":
+      case "#": {
+         let tempCursor = this.cursor;
+         while (tempCursor < this.input.length && (this.input[tempCursor] === " " || this.input[tempCursor] === "\t")) {
+           tempCursor++;
+         }
          if (
-           this.input[this.cursor] == "p" &&
-           this.input[this.cursor + 1] == "r" &&
-           this.input[this.cursor + 2] == "a" &&
-           this.input[this.cursor + 3] == "g" &&
-           this.input[this.cursor + 4] == "m" &&
-           this.input[this.cursor + 5] == "a"
+           this.input[tempCursor] == "p" &&
+           this.input[tempCursor + 1] == "r" &&
+           this.input[tempCursor + 2] == "a" &&
+           this.input[tempCursor + 3] == "g" &&
+           this.input[tempCursor + 4] == "m" &&
+           this.input[tempCursor + 5] == "a"
          ) {
-           this.readChar(6);
+           this.cursor = tempCursor + 6;
            while (this.cursor < this.input.length && (this.peek() === " " || this.peek() === "\t")) {
              this.cursor++;
            }
@@ -620,9 +624,10 @@ class Lexer {
            this.readChar(3);
            result = [Token.Dim];
          } else {
-           result = this.readKeywordOrIdentifier(char);
+           result = [Token.Hash];
          }
          break;
+      }
       case "c":
         if (
           this.input[this.cursor] == "t" &&

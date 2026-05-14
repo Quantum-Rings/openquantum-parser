@@ -50,4 +50,18 @@ qubit[2] q;`;
     expect(pragmaNodes[2].name).toBe('braket');
     expect(pragmaNodes[2].command).toBe('result variance hermitian([[0, -1im], [1im, 0]]) $0');
   });
+
+  it('parses # pragma with a space and without semicolon', () => {
+    const source = `OPENQASM 3.0;
+# pragma braket verbatim
+qubit[2] q;`;
+
+    const result = parseString(source);
+    const ast = result.ast;
+
+    const pragmaNode = ast.find((node: any) => node instanceof PragmaStatement);
+    expect(pragmaNode).toBeDefined();
+    expect(pragmaNode.name).toBe('braket');
+    expect(pragmaNode.command).toBe('verbatim');
+  });
 });

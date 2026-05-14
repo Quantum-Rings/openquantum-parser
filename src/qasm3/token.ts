@@ -355,6 +355,7 @@ const lookupMap: Record<string, Token> = {
   mutable: Token.Mutable,
   sizeof: Token.SizeOf,
   extern: Token.Extern,
+  "#": Token.Hash,
 };
 
 /**
