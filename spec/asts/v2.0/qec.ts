@@ -19,8 +19,7 @@ export const qecAst = [
   new CReg("c", 3),
   new CReg("syn", 2),
   new Gate("syndrome", ["d1", "d2", "d3", "a1", "a2"], undefined, [
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["d1", undefined],
@@ -28,9 +27,7 @@ export const qecAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["d2", undefined],
@@ -38,9 +35,7 @@ export const qecAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["d2", undefined],
@@ -48,9 +43,7 @@ export const qecAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["d3", undefined],
@@ -58,12 +51,10 @@ export const qecAst = [
         ],
         [],
       ),
-    ],
   ]),
-  [new ApplyGate("x", [["q", 0]], [])],
+  new ApplyGate("x", [["q", 0]], []),
   new Barrier([["q", undefined]]),
-  [
-    new ApplyGate(
+  new ApplyGate(
       "syndrome",
       [
         ["q", 0],
@@ -74,10 +65,9 @@ export const qecAst = [
       ],
       [],
     ),
-  ],
   new Measure("a", "syn", undefined, undefined),
-  new If("syn", 1, [[new ApplyGate("x", [["q", 0]], [])]]),
-  new If("syn", 2, [[new ApplyGate("x", [["q", 2]], [])]]),
-  new If("syn", 3, [[new ApplyGate("x", [["q", 1]], [])]]),
+  new If("syn", 1, [new ApplyGate("x", [["q", 0]], [])]),
+  new If("syn", 2, [new ApplyGate("x", [["q", 2]], [])]),
+  new If("syn", 3, [new ApplyGate("x", [["q", 1]], [])]),
   new Measure("q", "c", undefined, undefined),
 ];

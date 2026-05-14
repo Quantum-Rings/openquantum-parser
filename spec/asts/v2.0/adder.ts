@@ -13,8 +13,7 @@ export const adderAst = [
   new Version(new OpenQASMVersion(OpenQASMMajorVersion.Version2)),
   new Include("\"qelib1.inc\""),
   new Gate("majority", ["a", "b", "c"], undefined, [
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["c", undefined],
@@ -22,9 +21,7 @@ export const adderAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["c", undefined],
@@ -32,9 +29,7 @@ export const adderAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "ccx",
         [
           ["a", undefined],
@@ -43,11 +38,9 @@ export const adderAst = [
         ],
         [],
       ),
-    ],
   ]),
   new Gate("unmaj", ["a", "b", "c"], undefined, [
-    [
-      new ApplyGate(
+    new ApplyGate(
         "ccx",
         [
           ["a", undefined],
@@ -56,9 +49,7 @@ export const adderAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["c", undefined],
@@ -66,9 +57,7 @@ export const adderAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["a", undefined],
@@ -76,17 +65,15 @@ export const adderAst = [
         ],
         [],
       ),
-    ],
   ]),
   new QReg("cin", 1),
   new QReg("a", 4),
   new QReg("b", 4),
   new QReg("cout", 1),
   new CReg("ans", 5),
-  [new ApplyGate("x", [["a", 0]], [])],
-  [new ApplyGate("x", [["b", undefined]], [])],
-  [
-    new ApplyGate(
+  new ApplyGate("x", [["a", 0]], []),
+  new ApplyGate("x", [["b", undefined]], []),
+  new ApplyGate(
       "majority",
       [
         ["cin", 0],
@@ -95,9 +82,7 @@ export const adderAst = [
       ],
       [],
     ),
-  ],
-  [
-    new ApplyGate(
+  new ApplyGate(
       "majority",
       [
         ["a", 0],
@@ -106,9 +91,7 @@ export const adderAst = [
       ],
       [],
     ),
-  ],
-  [
-    new ApplyGate(
+  new ApplyGate(
       "majority",
       [
         ["a", 1],
@@ -117,9 +100,7 @@ export const adderAst = [
       ],
       [],
     ),
-  ],
-  [
-    new ApplyGate(
+  new ApplyGate(
       "majority",
       [
         ["a", 2],
@@ -128,9 +109,7 @@ export const adderAst = [
       ],
       [],
     ),
-  ],
-  [
-    new ApplyGate(
+  new ApplyGate(
       "cx",
       [
         ["a", 3],
@@ -138,9 +117,7 @@ export const adderAst = [
       ],
       [],
     ),
-  ],
-  [
-    new ApplyGate(
+  new ApplyGate(
       "unmaj",
       [
         ["a", 2],
@@ -149,9 +126,7 @@ export const adderAst = [
       ],
       [],
     ),
-  ],
-  [
-    new ApplyGate(
+  new ApplyGate(
       "unmaj",
       [
         ["a", 1],
@@ -160,9 +135,7 @@ export const adderAst = [
       ],
       [],
     ),
-  ],
-  [
-    new ApplyGate(
+  new ApplyGate(
       "unmaj",
       [
         ["a", 0],
@@ -171,9 +144,7 @@ export const adderAst = [
       ],
       [],
     ),
-  ],
-  [
-    new ApplyGate(
+  new ApplyGate(
       "unmaj",
       [
         ["cin", 0],
@@ -182,7 +153,6 @@ export const adderAst = [
       ],
       [],
     ),
-  ],
   new Measure("b", "ans", 0, 0),
   new Measure("b", "ans", 1, 1),
   new Measure("b", "ans", 2, 2),

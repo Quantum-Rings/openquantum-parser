@@ -14,10 +14,9 @@ export const rbAst = [
   new Include('"qelib1.inc"'),
   new QReg("q", 2),
   new CReg("c", 2),
-  [new ApplyGate("h", [["q", 0]], [])],
+  new ApplyGate("h", [["q", 0]], []),
   new Barrier([["q", undefined]]),
-  [
-    new ApplyGate(
+  new ApplyGate(
       "cz",
       [
         ["q", 0],
@@ -25,11 +24,9 @@ export const rbAst = [
       ],
       [],
     ),
-  ],
   new Barrier([["q", undefined]]),
-  [new ApplyGate("s", [["q", 0]], [])],
-  [
-    new ApplyGate(
+  new ApplyGate("s", [["q", 0]], []),
+  new ApplyGate(
       "cz",
       [
         ["q", 0],
@@ -37,11 +34,10 @@ export const rbAst = [
       ],
       [],
     ),
-  ],
   new Barrier([["q", undefined]]),
-  [new ApplyGate("s", [["q", 0]], [])],
-  [new ApplyGate("z", [["q", 0]], [])],
-  [new ApplyGate("h", [["q", 0]], [])],
+  new ApplyGate("s", [["q", 0]], []),
+  new ApplyGate("z", [["q", 0]], []),
+  new ApplyGate("h", [["q", 0]], []),
   new Barrier([["q", undefined]]),
   new Measure("q", "c", undefined, undefined),
 ];

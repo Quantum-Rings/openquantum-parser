@@ -13,8 +13,7 @@ export const bigAdderAst = [
   new Version(new OpenQASMVersion(OpenQASMMajorVersion.Version2)),
   new Include('"qelib1.inc"'),
   new Gate("majority", ["a", "b", "c"], undefined, [
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["c", undefined],
@@ -22,9 +21,7 @@ export const bigAdderAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["c", undefined],
@@ -32,9 +29,7 @@ export const bigAdderAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "ccx",
         [
           ["a", undefined],
@@ -43,11 +38,9 @@ export const bigAdderAst = [
         ],
         [],
       ),
-    ],
   ]),
   new Gate("unmaj", ["a", "b", "c"], undefined, [
-    [
-      new ApplyGate(
+    new ApplyGate(
         "ccx",
         [
           ["a", undefined],
@@ -56,9 +49,7 @@ export const bigAdderAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["c", undefined],
@@ -66,9 +57,7 @@ export const bigAdderAst = [
         ],
         [],
       ),
-    ],
-    [
-      new ApplyGate(
+    new ApplyGate(
         "cx",
         [
           ["a", undefined],
@@ -76,15 +65,13 @@ export const bigAdderAst = [
         ],
         [],
       ),
-    ],
   ]),
   new Gate(
     "add4",
     ["a0", "a1", "a2", "a3", "b0", "b1", "b2", "b3", "cin", "cout"],
     undefined,
     [
-      [
-        new ApplyGate(
+      new ApplyGate(
           "majority",
           [
             ["cin", undefined],
@@ -93,9 +80,7 @@ export const bigAdderAst = [
           ],
           [],
         ),
-      ],
-      [
-        new ApplyGate(
+      new ApplyGate(
           "majority",
           [
             ["a0", undefined],
@@ -104,9 +89,7 @@ export const bigAdderAst = [
           ],
           [],
         ),
-      ],
-      [
-        new ApplyGate(
+      new ApplyGate(
           "majority",
           [
             ["a1", undefined],
@@ -115,9 +98,7 @@ export const bigAdderAst = [
           ],
           [],
         ),
-      ],
-      [
-        new ApplyGate(
+      new ApplyGate(
           "majority",
           [
             ["a2", undefined],
@@ -126,9 +107,7 @@ export const bigAdderAst = [
           ],
           [],
         ),
-      ],
-      [
-        new ApplyGate(
+      new ApplyGate(
           "cx",
           [
             ["a3", undefined],
@@ -136,9 +115,7 @@ export const bigAdderAst = [
           ],
           [],
         ),
-      ],
-      [
-        new ApplyGate(
+      new ApplyGate(
           "unmaj",
           [
             ["a2", undefined],
@@ -147,9 +124,7 @@ export const bigAdderAst = [
           ],
           [],
         ),
-      ],
-      [
-        new ApplyGate(
+      new ApplyGate(
           "unmaj",
           [
             ["a1", undefined],
@@ -158,9 +133,7 @@ export const bigAdderAst = [
           ],
           [],
         ),
-      ],
-      [
-        new ApplyGate(
+      new ApplyGate(
           "unmaj",
           [
             ["a0", undefined],
@@ -169,9 +142,7 @@ export const bigAdderAst = [
           ],
           [],
         ),
-      ],
-      [
-        new ApplyGate(
+      new ApplyGate(
           "unmaj",
           [
             ["cin", undefined],
@@ -180,7 +151,6 @@ export const bigAdderAst = [
           ],
           [],
         ),
-      ],
     ],
   ),
   new QReg("carry", 2),
@@ -188,11 +158,10 @@ export const bigAdderAst = [
   new QReg("b", 8),
   new CReg("ans", 8),
   new CReg("carryout", 1),
-  [new ApplyGate("x", [["a", 0]], [])],
-  [new ApplyGate("x", [["b", undefined]], [])],
-  [new ApplyGate("x", [["b", 6]], [])],
-  [
-    new ApplyGate(
+  new ApplyGate("x", [["a", 0]], []),
+  new ApplyGate("x", [["b", undefined]], []),
+  new ApplyGate("x", [["b", 6]], []),
+  new ApplyGate(
       "add4",
       [
         ["a", 0],
@@ -208,9 +177,7 @@ export const bigAdderAst = [
       ],
       [],
     ),
-  ],
-  [
-    new ApplyGate(
+  new ApplyGate(
       "add4",
       [
         ["a", 4],
@@ -226,7 +193,6 @@ export const bigAdderAst = [
       ],
       [],
     ),
-  ],
   new Measure("b", "ans", 0, 0),
   new Measure("b", "ans", 1, 1),
   new Measure("b", "ans", 2, 2),

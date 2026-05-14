@@ -17,10 +17,10 @@ export const qptAst = [
   new Gate("post", ["q"], undefined, []),
   new QReg("q", 1),
   new CReg("c", 1),
-  [new ApplyGate("pre", [["q", 0]], [])],
+  new ApplyGate("pre", [["q", 0]], []),
   new Barrier([["q", undefined]]),
-  [new ApplyGate("h", [["q", 0]], [])],
+  new ApplyGate("h", [["q", 0]], []),
   new Barrier([["q", undefined]]),
-  [new ApplyGate("post", [["q", 0]], [])],
+  new ApplyGate("post", [["q", 0]], []),
   new Measure("q", "c", 0, 0),
 ];

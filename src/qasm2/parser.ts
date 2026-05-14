@@ -195,7 +195,7 @@ class Parser {
           !(token[1].toString().indexOf("include") != -1)
         ) {
           if (this.gates.includes(token[1].toString())) {
-            return [this.application(offset, token[1].toString(), line, column) as unknown as AstNode];
+            return [this.application(offset, token[1].toString(), line, column)];
           } else if (allowVariables) {
             return [new Variable(token[1].toString(), line, column)];
           } else {
@@ -430,10 +430,9 @@ class Parser {
     op: string,
     line: number,
     column: number
-  ): Array<AstNode> {
+  ): AstNode {
     let params: Array<any> = [];
     const list: Array<[string, number?]> = [];
-    const applications: Array<AstNode> = [];
     let current = offset;
 
     if (this.tokens[current][1] == op) {
@@ -453,22 +452,7 @@ class Parser {
     for (const arg in args) {
       list.push(args[arg]);
     }
-    applications.push(new ApplyGate(op, list, params, line, column));
-
-    Object.defineProperty(applications, "line", {
-      value: line,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    });
-    Object.defineProperty(applications, "column", {
-      value: column,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    });
-
-    return applications;
+    return new ApplyGate(op, list, params, line, column);
   }
 
   /**
