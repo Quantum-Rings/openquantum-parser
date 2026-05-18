@@ -186,17 +186,24 @@ function toQasm(node: any, version: number): string {
   if (Array.isArray(node)) return node.map(n => toQasm(n, version)).join('\n');
   if (!node || typeof node !== 'object') return String(node);
 
+  let annotationStr = '';
+  if (node.annotations && node.annotations.length > 0) {
+    annotationStr = node.annotations.map((a: any) => `@${a.name}${a.command ? ' ' + a.command : ''}\n`).join('');
+  }
+
   switch (node.constructor.name) {
     case 'PragmaStatement':
-      return `#pragma ${node.name}${node.command ? ' ' + node.command : ''};`;
+      return `${annotationStr}#pragma ${node.name}${node.command ? ' ' + node.command : ''};`;
     case 'Version':
-      return `OPENQASM ${node.version.major}.${node.version.minor};`;
+      return `${annotationStr}OPENQASM ${node.version.major}.${node.version.minor};`;
     case 'Include':
-      return `include ${node.filename};`;
+      return `${annotationStr}include ${node.filename};`;
+    case 'Annotation':
+      return '';
     // Add more cases as needed for full unparse
     default:
       // Fallback: recurse on properties, skipping metadata
-      return Object.entries(node).filter(([k]) => k !== 'line' && k !== 'column').map(([k,v]) => toQasm(v, version)).join(' ');
+      return annotationStr + Object.entries(node).filter(([k]) => k !== 'line' && k !== 'column' && k !== 'annotations').map(([k,v]) => toQasm(v, version)).join(' ');
   }
 }
 

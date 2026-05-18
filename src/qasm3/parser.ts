@@ -32,7 +32,7 @@
  * ```
  */
 
-import { Token } from "./token";
+import { Token, inverseLookup } from "./token";
 import { OpenQASMVersion } from "../version";
 import {
   BadQregError,
@@ -58,6 +58,9 @@ import {
   ArrayReferenceModifier,
   ArrayReference,
   CalibrationGrammarDeclaration,
+  CalibrationBlock,
+  CalibrationDefinition,
+  Annotation,
   Include,
   Version,
   FloatType,
@@ -153,6 +156,30 @@ function throwParserError(
     throw new error(message, token[2], token[3], token[4]);
   } else {
     throw new error(message);
+  }
+}
+
+/**
+ * Converts a token back to its string representation.
+ */
+function tokenToString(token: any): string {
+  if (token[0] === Token.HardwareQubit) return `$${token[1]}`;
+  if (token[1] !== undefined) return token[1].toString();
+  switch (token[0]) {
+    case Token.Semicolon: return ";";
+    case Token.Comma: return ",";
+    case Token.Colon: return ":";
+    case Token.LParen: return "(";
+    case Token.RParen: return ")";
+    case Token.LSParen: return "[";
+    case Token.RSParen: return "]";
+    case Token.LCParen: return "{";
+    case Token.RCParen: return "}";
+    case Token.Arrow: return "->";
+    case Token.EqualsAssmt: return "=";
+    case Token.Dollar: return "$";
+    case Token.At: return "@";
+    default: return inverseLookup(token[0]) || "";
   }
 }
 
@@ -321,35 +348,83 @@ class Parser {
     offset: number,
     allowVariables = true,
   ): [Array<AstNode>, number] {
+    let annotations: Annotation[] = [];
+    let originalOffset = offset;
+
+    while (offset < this.tokens.length && this.tokens[offset][0] === Token.At) {
+      const line = this.tokens[offset][2];
+      const column = this.tokens[offset][3];
+      const lineText = this.tokens[offset][4];
+      let consumed = 1;
+
+      let name = "";
+      if (offset + consumed < this.tokens.length && this.tokens[offset + consumed][2] === line) {
+        const tokenVal = this.tokens[offset + consumed][1];
+        if (tokenVal !== undefined) {
+          name = tokenVal.toString();
+        } else {
+          const inverse = inverseLookup(this.tokens[offset + consumed][0]);
+          if (inverse) name = inverse;
+        }
+        consumed++;
+      }
+
+      while (offset + consumed < this.tokens.length && this.tokens[offset + consumed][2] === line) {
+        consumed++;
+      }
+
+      let command = "";
+      const atIndex = lineText.indexOf("@");
+      if (atIndex !== -1 && name.length > 0) {
+        const nameIndex = lineText.indexOf(name, atIndex + 1);
+        if (nameIndex !== -1) {
+          command = lineText.slice(nameIndex + name.length).trim();
+        }
+      }
+
+      annotations.push(new Annotation(name, command, line, column));
+      offset += consumed;
+    }
+
+    if (offset >= this.tokens.length) {
+      return [[], offset - originalOffset];
+    }
+
     const token = this.tokens[offset];
+    let result: [Array<AstNode>, number] = [[], 0];
     switch (token[0]) {
       case Token.DefcalGrammar: {
         const [defcalGrammarNode, consumed] =
           this.defcalGrammarDeclaration(offset);
-        return [[defcalGrammarNode], consumed];
+        result = [[defcalGrammarNode], consumed];
+        break;
       }
       case Token.Include: {
         const [includeNode, consumed] = this.include(offset);
         if (includeNode.filename === '"stdgates.inc"') {
           this.stdGates();
         }
-        return [[includeNode], consumed];
+        result = [[includeNode], consumed];
+        break;
       }
       case Token.OpenQASM: {
         const [qasmNode, consumed] = this.versionHeader(offset);
-        return [[qasmNode], consumed];
+        result = [[qasmNode], consumed];
+        break;
       }
       case Token.Const: {
         const [constNode, consumed] = this.classicalDeclaration(
           offset + 1,
           true,
         );
-        return [[constNode], consumed + 1];
+        result = [[constNode], consumed + 1];
+        break;
       }
       case Token.Input:
       case Token.Output: {
         const [ioType, consumed] = this.ioType(offset);
-        return [[ioType], consumed];
+        result = [[ioType], consumed];
+        break;
       }
       case Token.Float:
       case Token.Int:
@@ -363,73 +438,188 @@ class Parser {
           offset,
           false,
         );
-        return [[classicalNode], consumed];
+        result = [[classicalNode], consumed];
+        break;
       }
       case Token.Qubit:
       case Token.QReg: {
         const [qregNode, qregConsumed] = this.quantumDeclaration(offset);
-        return [[qregNode], qregConsumed];
+        result = [[qregNode], qregConsumed];
+        break;
       }
       case Token.Break:
-        return [[new BreakStatement(token[2], token[3])], 1];
+        result = [[new BreakStatement(token[2], token[3])], 1];
+        break;
       case Token.Reset: {
         const [resetNode, resetConsumed] = this.resetStatement(offset);
-        return [[resetNode], resetConsumed];
+        result = [[resetNode], resetConsumed];
+        break;
       }
       case Token.Continue:
-        return [[new ContinueStatement(token[2], token[3])], 1];
+        result = [[new ContinueStatement(token[2], token[3])], 1];
+        break;
       case Token.Let: {
         const [letNode, letConsumed] = this.aliasStatement(offset);
-        return [[letNode], letConsumed];
+        result = [[letNode], letConsumed];
+        break;
       }
       case Token.Bit:
         if (this.isMeasurement(offset + 1)) {
           const [measureNode, measureConsumed] = this.measureStatement(offset);
-          return [[measureNode], measureConsumed];
+          result = [[measureNode], measureConsumed];
         } else {
           const [classicalNode, consumed] = this.classicalDeclaration(
             offset,
             false,
           );
-          return [[classicalNode], consumed];
+          result = [[classicalNode], consumed];
         }
+        break;
       case Token.CReg: {
         const [classicalNode, consumed] = this.classicalDeclaration(
           offset,
           false,
         );
-        return [[classicalNode], consumed];
+        result = [[classicalNode], consumed];
+        break;
       }
       case Token.Measure: {
         const [measureNode, measureConsumed] = this.measureStatement(offset);
-        return [[measureNode], measureConsumed];
+        result = [[measureNode], measureConsumed];
+        break;
       }
       case Token.Gate: {
         const [gateNode, gateConsumed] = this.quantumGateDefinition(offset);
         this.customGates.add(gateNode.name.name);
-        return [[gateNode], gateConsumed];
+        result = [[gateNode], gateConsumed];
+        break;
       }
       case Token.Return: {
         const [returnNode, returnConsumed] = this.returnStatement(offset);
-        return [[returnNode], returnConsumed];
+        result = [[returnNode], returnConsumed];
+        break;
       }
       case Token.Def: {
         const [subroutineNode, subroutineConsumed] =
           this.subroutineDefinition(offset);
         this.subroutines.add(subroutineNode.name.name);
-        return [[subroutineNode], subroutineConsumed];
+        result = [[subroutineNode], subroutineConsumed];
+        break;
       }
       case Token.Extern: {
         const [externNode, consumed] = this.externSignature(offset);
         this.subroutines.add(externNode.name.name);
-        return [[externNode], consumed];
+        result = [[externNode], consumed];
+        break;
+      }
+      case Token.Defcal: {
+        let consumed = 1;
+        const line = this.tokens[offset][2];
+        const column = this.tokens[offset][3];
+
+        if (!this.matchNext(offset + consumed, [Token.Id]) && !this.matchNext(offset + consumed, [Token.Measure]) && !this.matchNext(offset + consumed, [Token.Reset])) {
+          throwParserError(
+            BadExpressionError,
+            this.tokens[offset + consumed],
+            this.index + consumed,
+            "expected identifier, measure, or reset after defcal",
+          );
+        }
+        
+        let nameToken = this.tokens[offset + consumed];
+        let nameStr = nameToken[1] ? nameToken[1].toString() : (nameToken[0] === Token.Measure ? "measure" : (nameToken[0] === Token.Reset ? "reset" : ""));
+        const name = new Identifier(nameStr, line, column);
+        consumed++;
+
+        let params: Parameters | null = null;
+        if (this.matchNext(offset + consumed, [Token.LParen])) {
+          const [parsedParams, paramsConsumed] = this.parseParameters(offset + consumed);
+          params = parsedParams;
+          consumed += paramsConsumed;
+        }
+
+        const qubits: Array<Identifier | HardwareQubit> = [];
+        while (offset + consumed < this.tokens.length && 
+               !this.matchNext(offset + consumed, [Token.Arrow]) && 
+               !this.matchNext(offset + consumed, [Token.LCParen])) {
+          
+          if (this.matchNext(offset + consumed, [Token.HardwareQubit]) || this.matchNext(offset + consumed, [Token.Dollar, Token.NNInteger])) {
+            const [hwQubit, hwConsumed] = this.parseHardwareQubit(offset + consumed);
+            qubits.push(hwQubit);
+            consumed += hwConsumed;
+          } else if (this.matchNext(offset + consumed, [Token.Id])) {
+            qubits.push(new Identifier(this.tokens[offset + consumed][1].toString(), this.tokens[offset + consumed][2], this.tokens[offset + consumed][3]));
+            consumed++;
+          } else {
+             throwParserError(BadExpressionError, this.tokens[offset + consumed], this.index + consumed, "expected qubit in defcal");
+          }
+
+          if (this.matchNext(offset + consumed, [Token.Comma])) {
+            consumed++;
+          } else if (!this.matchNext(offset + consumed, [Token.Arrow]) && !this.matchNext(offset + consumed, [Token.LCParen])) {
+             throwParserError(BadExpressionError, this.tokens[offset + consumed], this.index + consumed, "expected comma, ->, or { in defcal");
+          }
+        }
+
+        let returnType: ClassicalType | null = null;
+        if (this.matchNext(offset + consumed, [Token.Arrow])) {
+          consumed++;
+          const [parsedType, typeConsumed] = this.parseClassicalType(offset + consumed);
+          returnType = parsedType;
+          consumed += typeConsumed;
+        }
+
+        if (!this.matchNext(offset + consumed, [Token.LCParen])) {
+          throwParserError(MissingBraceError, this.tokens[offset + consumed], this.index + consumed, "expected { in defcal");
+        }
+        consumed++;
+
+        let braceCount = 1;
+        const bodyTokens = [];
+        while (offset + consumed < this.tokens.length && braceCount > 0) {
+          const nextToken = this.tokens[offset + consumed];
+          if (nextToken[0] === Token.LCParen) braceCount++;
+          else if (nextToken[0] === Token.RCParen) braceCount--;
+          
+          if (braceCount > 0) {
+            bodyTokens.push(nextToken);
+          }
+          consumed++;
+        }
+        const bodyStr = bodyTokens.map(tokenToString).join(" ");
+        
+        result = [[new CalibrationDefinition(name, qubits, bodyStr, params, returnType, line, column)], consumed];
+        break;
+      }
+      case Token.Cal: {
+        if (this.matchNext(offset + 1, [Token.LCParen])) {
+          let consumed = 2;
+          let braceCount = 1;
+          const bodyTokens = [];
+          while (offset + consumed < this.tokens.length && braceCount > 0) {
+            const nextToken = this.tokens[offset + consumed];
+            if (nextToken[0] === Token.LCParen) braceCount++;
+            else if (nextToken[0] === Token.RCParen) braceCount--;
+            
+            if (braceCount > 0) {
+              bodyTokens.push(nextToken);
+            }
+            consumed++;
+          }
+          const calBody = bodyTokens.map(tokenToString).join(" ");
+          result = [[new CalibrationBlock(calBody, token[2], token[3])], consumed];
+        } else {
+          throwParserError(MissingBraceError, this.tokens[offset], this.index, "expected { after cal");
+        }
+        break;
       }
       case Token.Ctrl:
       case Token.NegCtrl:
       case Token.Inv:
       case Token.PowM: {
         const [gateCallNode, gateCallConsumed] = this.quantumGateCall(offset);
-        return [[gateCallNode], gateCallConsumed];
+        result = [[gateCallNode], gateCallConsumed];
+        break;
       }
       case Token.Ceiling:
       case Token.Exp:
@@ -449,7 +639,8 @@ class Parser {
           token[2],
           token[3],
         );
-        return [[mathNode], consumed];
+        result = [[mathNode], consumed];
+        break;
       }
       case Token.Opaque: {
         let consumed = 1;
@@ -459,17 +650,20 @@ class Parser {
         ) {
           consumed++;
         }
-        return [[], consumed];
+        result = [[], consumed];
+        break;
       }
       case Token.DurationOf: {
         const [durationOfNOde, consumed] = this.durationOf(offset, token[2], token[3]);
-        return [[durationOfNOde], consumed];
+        result = [[durationOfNOde], consumed];
+        break;
       }
       case Token.Dollar:
       case Token.HardwareQubit: {
         const [node, consumed] = this.parseHardwareQubit(offset);
         if (this.matchNext(offset + consumed, [Token.Semicolon])) {
-          return [[node], consumed + 1];
+          result = [[node], consumed + 1];
+          break;
         }
         throwParserError(
           MissingSemicolonError,
@@ -481,56 +675,69 @@ class Parser {
       }
       case Token.SizeOf: {
         const [sizeOfNode, consumed] = this.sizeOf(offset);
-        return [[sizeOfNode], consumed];
+        result = [[sizeOfNode], consumed];
+        break;
       }
       case Token.Delay: {
         const [delayNode, delayConsumed] = this.delay(offset);
-        return [[delayNode], delayConsumed];
+        result = [[delayNode], delayConsumed];
+        break;
       }
       case Token.If: {
         const [ifNode, ifConsumed] = this.ifStatement(offset);
-        return [[ifNode], ifConsumed];
+        result = [[ifNode], ifConsumed];
+        break;
       }
       case Token.For: {
         const [forNode, forConsumed] = this.forLoopStatement(offset);
-        return [[forNode], forConsumed];
+        result = [[forNode], forConsumed];
+        break;
       }
       case Token.While: {
         const [whileNode, whileConsumed] = this.whileLoopStatement(offset);
-        return [[whileNode], whileConsumed];
+        result = [[whileNode], whileConsumed];
+        break;
       }
       case Token.Switch: {
         const [switchNode, switchConsumed] = this.switchStatement(offset);
-        return [[switchNode], switchConsumed];
+        result = [[switchNode], switchConsumed];
+        break;
       }
       case Token.Array: {
         const [arrayNode, arrayConsumed] = this.arrayDeclaration(offset);
         this.customArrays.add(arrayNode.identifier.name);
-        return [[arrayNode], arrayConsumed];
+        result = [[arrayNode], arrayConsumed];
+        break;
       }
       case Token.Box: {
         const [boxNode, boxConsumed] = this.box(offset);
-        return [[boxNode], boxConsumed];
+        result = [[boxNode], boxConsumed];
+        break;
       }
       case Token.Barrier: {
         const [barrierNode, barrierConsumed] = this.barrier(offset);
-        return [[barrierNode], barrierConsumed];
+        result = [[barrierNode], barrierConsumed];
+        break;
       }
       case Token.LCParen: {
         const [blockNode, blockConsumed] = this.programBlock(offset);
-        return [[blockNode], blockConsumed];
+        result = [[blockNode], blockConsumed];
+        break;
       }
       case Token.Id:
-        if (this.isQuantumGateCall(offset)) {
+        if (token[1] === "double") {
+          const [classicalNode, consumed] = this.classicalDeclaration(offset, false);
+          result = [[classicalNode], consumed];
+        } else if (this.isQuantumGateCall(offset)) {
           const [gateCallNode, gateCallConsumed] = this.quantumGateCall(offset);
-          return [[gateCallNode], gateCallConsumed];
+          result = [[gateCallNode], gateCallConsumed];
         } else if (this.isSubroutineCall(offset)) {
           const [subroutineCallNode, subroutineCallConsumed] =
             this.subroutineCall(offset);
-          return [[subroutineCallNode], subroutineCallConsumed];
+          result = [[subroutineCallNode], subroutineCallConsumed];
         } else if (this.isMeasurement(offset)) {
           const [measureNode, measureConsumed] = this.measureStatement(offset);
-          return [[measureNode], measureConsumed];
+          result = [[measureNode], measureConsumed];
         } else if (
           this.matchNext(offset + 1, [Token.EqualsAssmt]) ||
           this.matchNext(offset + 1, [Token.CompoundArithmeticOp]) ||
@@ -538,11 +745,11 @@ class Parser {
           this.isAssignment(offset)
         ) {
           const [assignmentNode, consumed] = this.assignment(offset);
-          return [[assignmentNode], consumed];
+          result = [[assignmentNode], consumed];
         } else if (allowVariables) {
           const [expr, consumed] = this.binaryExpression(offset);
           if (this.matchNext(offset + consumed, [Token.Semicolon])) {
-            return [[expr], consumed + 1];
+            result = [[expr], consumed + 1];
           } else {
             throwParserError(
               MissingSemicolonError,
@@ -553,6 +760,10 @@ class Parser {
           }
         }
         break;
+      case Token.At: {
+        // Handled in the preamble loop of parseNode
+        break;
+      }
       case Token.Pragma: {
         let consumed = 1;
         const line = this.tokens[offset][2];
@@ -582,14 +793,23 @@ class Parser {
             consumed++;
         }
 
-        return [[new PragmaStatement(name, command, line, col)], consumed];
+        result = [[new PragmaStatement(name, command, line, col)], consumed];
+        break;
       }
       case Token.Hash: {
-        return [[], 1];
+        result = [[], 1];
+        break;
       }
       default:
-        return [[], 1];
+        result = [[], 1];
+        break;
     }
+
+    const [nodes, consumedNodes] = result;
+    if (annotations.length > 0 && nodes.length > 0) {
+      nodes[0].annotations = annotations;
+    }
+    return [nodes, offset - originalOffset + consumedNodes];
   }
 
   /**
@@ -1102,6 +1322,14 @@ class Parser {
       consumed++;
     }
 
+    if (this.matchNext(offset + consumed, [Token.EqualsAssmt])) {
+      consumed++;
+      const [initExpr, initConsumed] = this.binaryExpression(
+        offset + consumed,
+      );
+      consumed += initConsumed;
+    }
+
     if (
       !(
         this.matchNext(offset + consumed, [Token.Semicolon]) ||
@@ -1282,9 +1510,24 @@ class Parser {
     let expression: Array<Expression | QuantumMeasurement> | undefined = undefined;
 
     if (!this.matchNext(offset + consumed, [Token.Semicolon])) {
-      const [nodes, exprConsumed] = this.parseNode(offset + consumed);
-      expression = [nodes[0] as Expression | QuantumMeasurement];
-      consumed += exprConsumed;
+      if (this.tokens[offset + consumed][0] === Token.Measure) {
+        const [measureNode, measureConsumed] = this.measureStatement(offset + consumed);
+        expression = [measureNode as QuantumMeasurement];
+        consumed += measureConsumed;
+      } else {
+        expression = [];
+        while (!this.matchNext(offset + consumed, [Token.Semicolon])) {
+          const [exprNode, exprConsumed] = this.binaryExpression(offset + consumed);
+          expression.push(exprNode);
+          consumed += exprConsumed;
+          if (this.matchNext(offset + consumed, [Token.Comma])) {
+            consumed++;
+          }
+        }
+        consumed++; // Consume semicolon
+      }
+    } else {
+      consumed++; // Consume semicolon
     }
 
     return [new ReturnStatement(expression, line, column), consumed];
@@ -1301,6 +1544,28 @@ class Parser {
     let consumed = 1;
     const line = this.tokens[offset][2];
     const column = this.tokens[offset][3];
+
+    // Check for C-style extern: extern type identifier ( ... );
+    if (this.matchNext(offset + consumed, [Token.Id]) && this.matchNext(offset + consumed + 1, [Token.Id]) && !this.matchNext(offset + consumed + 1, [Token.LParen])) {
+      const [returnTypeNode, typeConsumed] = this.parseClassicalType(offset + consumed);
+      consumed += typeConsumed;
+      const [identifier, identifierConsumed] = this.unaryExpression(offset + consumed);
+      consumed += identifierConsumed;
+      
+      let externParams: Parameters = null;
+      if (this.matchNext(offset + consumed, [Token.LParen])) {
+        const [params, paramsConsumed] = this.parseParameters(offset + consumed);
+        externParams = params;
+        consumed += paramsConsumed;
+      }
+      if (!this.matchNext(offset + consumed, [Token.Semicolon])) {
+        throwParserError(MissingSemicolonError, this.tokens[offset + consumed], this.index + consumed, "expected semicolon");
+      }
+      consumed++;
+      
+      return [new ExternSignature(identifier as Identifier, externParams, returnTypeNode, line, column), consumed];
+    }
+
     if (!this.matchNext(offset + consumed, [Token.Id])) {
       throwParserError(
         BadSubroutineError,
@@ -2701,7 +2966,7 @@ class Parser {
     const column = this.tokens[offset][3];
     const labels: Array<Expression> = [];
 
-    while (!this.matchNext(offset + consumed, [Token.LCParen])) {
+    while (!this.matchNext(offset + consumed, [Token.LCParen]) && !this.matchNext(offset + consumed, [Token.Colon])) {
       const [label, labelConsumed] = this.binaryExpression(
         offset + consumed,
       );
@@ -2710,14 +2975,18 @@ class Parser {
 
       if (this.matchNext(offset + consumed, [Token.Comma])) {
         consumed++;
-      } else if (!this.matchNext(offset + consumed, [Token.LCParen])) {
+      } else if (!this.matchNext(offset + consumed, [Token.LCParen]) && !this.matchNext(offset + consumed, [Token.Colon])) {
         throwParserError(
           BadExpressionError,
           this.tokens[offset + consumed],
           this.index + consumed,
-          "expected comma or opening brace in case statement",
+          "expected comma, colon or opening brace in case statement",
         );
       }
+    }
+
+    if (this.matchNext(offset + consumed, [Token.Colon])) {
+      consumed++;
     }
 
     const [body, bodyConsumed] = this.programBlock(offset + consumed);
@@ -2738,12 +3007,14 @@ class Parser {
     const line = this.tokens[offset][2];
     const column = this.tokens[offset][3];
 
-    if (!this.matchNext(offset + consumed, [Token.LCParen])) {
+    if (this.matchNext(offset + consumed, [Token.Colon])) {
+      consumed++;
+    } else if (!this.matchNext(offset + consumed, [Token.LCParen])) {
       throwParserError(
         MissingBraceError,
         this.tokens[offset + consumed],
         this.index + consumed,
-        "expecting opening brace for default statement",
+        "expecting colon or opening brace for default statement",
       );
     }
 
@@ -3032,6 +3303,10 @@ class Parser {
     let width: Expression | undefined;
     let isComplex = false;
 
+    if (typeToken === Token.Id && this.tokens[offset][1] === "double") {
+      return [new FloatType(64, line, column), consumed];
+    }
+
     if (typeToken === Token.Complex) {
       if (
         !this.matchNext(offset + consumed, [Token.LSParen, Token.Float])
@@ -3253,11 +3528,14 @@ class Parser {
       offset + i < this.tokens.length - 1 &&
       this.tokens[offset + i][0] !== Token.LCParen &&
       this.tokens[offset + i][0] !== Token.Semicolon &&
-      this.tokens[offset + i][0] !== Token.EqualsAssmt
+      this.tokens[offset + i][0] !== Token.EqualsAssmt &&
+      this.tokens[offset + i][0] !== Token.CompoundArithmeticOp &&
+      this.tokens[offset + i][0] !== Token.CompoundBinaryOp
     ) {
       i++;
     }
-    return this.tokens[offset + i]?.[0] === Token.EqualsAssmt;
+    const token = this.tokens[offset + i]?.[0];
+    return token === Token.EqualsAssmt || token === Token.CompoundArithmeticOp || token === Token.CompoundBinaryOp;
   }
 
   /** Checks whether an identifier is a quantum gate call. */
@@ -3288,6 +3566,12 @@ class Parser {
       if (afterParen === Token.Id || afterParen === Token.HardwareQubit || afterParen === Token.Dollar) {
         return true;
       }
+    }
+
+    // Fallback: If it's not a subroutine and not an assignment, assume it's a gate call
+    // This allows unknown native gates to be successfully parsed as gate calls inside boxes
+    if (!this.subroutines.has(gateName) && !this.isAssignment(offset)) {
+      return true;
     }
     return false;
   }

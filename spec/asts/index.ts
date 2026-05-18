@@ -29,7 +29,10 @@ import { rusAst } from "./v3.0/rus";
 import { scqecAst } from "./v3.0/scqec";
 import { teleportAst as teleportAst3 } from "./v3.0/teleport";
 import { varteleportAst } from "./v3.0/varteleport";
+import { annotationsAst } from "./v3.0/annotations";
+import { calibrationAst } from "./v3.0/calibration";
 import { flexibleDeclarationsAst } from "./v3.0/flexible_declarations";
+import { switchAst } from "./v3.0/switch";
 
 export const astSet = {
   "v2.0": {
@@ -66,6 +69,9 @@ export const astSet = {
     "scqec.ts": scqecAst,
     "teleport.ts": teleportAst3,
     "varteleport.ts": varteleportAst,
+    "annotations.ts": annotationsAst,
+    "calibration.ts": calibrationAst,
     "flexible_declarations.ts": flexibleDeclarationsAst,
+    "switch.ts": switchAst,
   },
 };

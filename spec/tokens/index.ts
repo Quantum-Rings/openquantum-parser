@@ -29,7 +29,10 @@ import { rusTokens } from "./generic/v3.0/rus";
 import { scqecTokens } from "./generic/v3.0/scqec";
 import { teleportTokens as teleportTokens3 } from "./generic/v3.0/teleport";
 import { varTeleportTokens } from "./generic/v3.0/varteleport";
+import { annotationsTokens } from "./generic/v3.0/annotations";
+import { calibrationTokens } from "./generic/v3.0/calibration";
 import { flexibleDeclarationsTokens } from "./generic/v3.0/flexible_declarations";
+import { switchTokens } from "./generic/v3.0/switch";
 
 export const tokenSet = {
   "v3.0": {
@@ -51,7 +54,10 @@ export const tokenSet = {
     "scqec.qasm": scqecTokens,
     "teleport.qasm": teleportTokens3,
     "varteleport.qasm": varTeleportTokens,
+    "annotations.qasm": annotationsTokens,
+    "calibration.qasm": calibrationTokens,
     "flexible_declarations.qasm": flexibleDeclarationsTokens,
+    "switch.qasm": switchTokens,
   },
   "v2.0": {
     "W-state.qasm": wStateTokens,

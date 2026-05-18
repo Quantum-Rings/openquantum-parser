@@ -53,6 +53,7 @@ class AstNode {
   line?: number;
   column?: number;
   type: string;
+  annotations?: Annotation[];
   constructor(line?: number, column?: number) {
     this.type = this.constructor.name;
     Object.defineProperty(this, 'line', {
@@ -96,6 +97,60 @@ class CalibrationGrammarDeclaration extends Statement {
   constructor(name: string, line?: number, column?: number) {
     super(line, column);
     this.name = name;
+  }
+}
+
+/**
+ * Class representing an annotation (e.g. @directive).
+ *
+ * annotations are attached to the following statement per the spec.
+ */
+class Annotation extends AstNode {
+  name: string;
+  command: string;
+  constructor(name: string, command: string, line?: number, column?: number) {
+    super(line, column);
+    this.name = name;
+    this.command = command;
+  }
+}
+
+/**
+ * Class representing a defcal definition for calibration (OpenPulse).
+ *
+ * defcalStatement:
+ *   DEFCAL identifier ( ... ) qubits { ... }
+ */
+class CalibrationDefinition extends Statement {
+  name: Identifier;
+  parameters: Parameters | null;
+  qubits: Array<Identifier | HardwareQubit>;
+  returnType: ClassicalType | null;
+  body: string;
+  constructor(
+    name: Identifier,
+    qubits: Array<Identifier | HardwareQubit>,
+    body: string,
+    parameters?: Parameters | null,
+    returnType?: ClassicalType | null,
+    line?: number,
+    column?: number
+  ) {
+    super(line, column);
+    this.name = name;
+    this.qubits = qubits;
+    this.body = body;
+    this.parameters = parameters ? parameters : null;
+    this.returnType = returnType ? returnType : null;
+  }
+}
+
+/** Class representing an inline calibration block. */
+class CalibrationBlock extends Statement {
+  body: string;
+  constructor(body: string, line?: number, column?: number) {
+    super(line, column);
+    this.body = body;
   }
 }
 
@@ -1098,6 +1153,9 @@ export {
   ArrayReferenceModifier,
   ArrayReference,
   CalibrationGrammarDeclaration,
+  CalibrationDefinition,
+  CalibrationBlock,
+  Annotation,
   Include,
   Version,
   FloatType,

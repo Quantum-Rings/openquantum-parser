@@ -245,6 +245,8 @@ enum Token {
   Hash,
   // 103; pragma keyword
   Pragma,
+  // 104; cal keyword
+  Cal,
 }
 
 /**
@@ -296,6 +298,7 @@ const lookupMap: Record<string, Token> = {
   case: Token.Case,
   default: Token.Default,
   defcal: Token.Defcal,
+  cal: Token.Cal,
   const: Token.Const,
   else: Token.Else,
   end: Token.End,

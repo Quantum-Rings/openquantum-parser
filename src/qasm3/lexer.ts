@@ -201,11 +201,14 @@ class Lexer {
         !trimmedLine.startsWith("while") &&
         !trimmedLine.startsWith("switch") &&
         !trimmedLine.startsWith("case") &&
+        !trimmedLine.startsWith("cal") &&
+        !trimmedLine.startsWith("defcal") &&
         !trimmedLine.startsWith("box") &&
         !trimmedLine.startsWith("array") &&
         !trimmedLine.startsWith("{") &&
         !trimmedLine.startsWith("default") &&
-        !trimmedLine.match(/^#\s*pragma/)
+        !trimmedLine.match(/^#\s*pragma/) &&
+        !trimmedLine.startsWith("@")
       ) {
         return [false, i + 1, this.lines[i]];
       }
