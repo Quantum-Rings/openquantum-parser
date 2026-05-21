@@ -162,5 +162,20 @@ describe("lexer", () => {
       expect(tokens[0][0]).toBe(Qasm3Token.Pragma);
       expect(tokens[0][1]).toBe("braket result");
     });
+
+    it("should lex bare pragma (official OpenQASM 3 form) without #", () => {
+      const qasm = "pragma braket verbatim";
+      const tokens = lex(qasm, 0, 3);
+      expect(tokens.length).toBeGreaterThan(0);
+      expect(tokens[0][0]).toBe(Qasm3Token.Pragma);
+      expect(tokens[0][1]).toBe("braket verbatim");
+    });
+
+    it("should lex bare pragma with leading whitespace and mixed case", () => {
+      const qasm = "  PRAGMA  ibm.max_temp 0.4";
+      const tokens = lex(qasm, 0, 3);
+      expect(tokens[0][0]).toBe(Qasm3Token.Pragma);
+      expect(tokens[0][1]).toBe("ibm.max_temp 0.4");
+    });
   });
 });

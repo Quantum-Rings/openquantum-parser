@@ -100,7 +100,7 @@ describe("parser", () => {
 });
 
 describe('pragma support', () => {
-  it('should parse and unparse #pragma braket verbatim;', () => {
+  it('should parse #pragma (legacy) and unparse to official pragma form', () => {
     const qasm = 'OPENQASM 3.0;\n#pragma braket verbatim;';
     const result = parseString(qasm, 3);
     expect(result.ast.length).toBe(2);
@@ -108,7 +108,8 @@ describe('pragma support', () => {
     expect(result.ast[1].name).toBe('braket');
     expect(result.ast[1].command).toBe('verbatim');
     const unparsed = unparse(result.ast, 3);
-    expect(unparsed).toBe('OPENQASM 3.0;\n#pragma braket verbatim;');
+    // Library emits the official OpenQASM 3 form (no #)
+    expect(unparsed).toBe('OPENQASM 3.0;\npragma braket verbatim;');
   });
 
   it('should parse pragmas with only a name', () => {
@@ -119,7 +120,7 @@ describe('pragma support', () => {
     expect(result.ast[1].name).toBe('braket');
     expect(result.ast[1].command).toBe('');
     const unparsed = unparse(result.ast, 3);
-    expect(unparsed).toBe('OPENQASM 3.0;\n#pragma braket;');
+    expect(unparsed).toBe('OPENQASM 3.0;\npragma braket;');
   });
 
   it('should parse pragmas with multiple command words', () => {
@@ -130,7 +131,7 @@ describe('pragma support', () => {
     expect(result.ast[1].name).toBe('braket');
     expect(result.ast[1].command).toBe('result noise');
     const unparsed = unparse(result.ast, 3);
-    expect(unparsed).toBe('OPENQASM 3.0;\n#pragma braket result noise;');
+    expect(unparsed).toBe('OPENQASM 3.0;\npragma braket result noise;');
   });
 
   it('should parse pragmas with no semicolon', () => {

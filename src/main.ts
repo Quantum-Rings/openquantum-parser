@@ -193,7 +193,9 @@ function toQasm(node: any, version: number): string {
 
   switch (node.constructor.name) {
     case 'PragmaStatement':
-      return `${annotationStr}#pragma ${node.name}${node.command ? ' ' + node.command : ''};`;
+      // Emit the official OpenQASM 3 form (no #). Implementations that require
+      // the legacy #pragma (e.g. AWS Braket) must add it at their emission layer.
+      return `${annotationStr}pragma ${node.name}${node.command ? ' ' + node.command : ''};`;
     case 'Version':
       return `${annotationStr}OPENQASM ${node.version.major}.${node.version.minor};`;
     case 'Include':
@@ -222,7 +224,7 @@ function toQasm(node: any, version: number): string {
  * const qasm = 'OPENQASM 3.0;\n#pragma braket verbatim;';
  * const result = parseString(qasm);
  * const unparsed = unparse(result.ast, 3);
- * console.log(unparsed); // 'OPENQASM 3.0;\n#pragma braket verbatim;'
+ * console.log(unparsed); // 'OPENQASM 3.0;\npragma braket verbatim;'
  * ```
  */
 export function unparse(ast: any[], version?: number): string {

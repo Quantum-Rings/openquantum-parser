@@ -207,7 +207,7 @@ class Lexer {
         !trimmedLine.startsWith("array") &&
         !trimmedLine.startsWith("{") &&
         !trimmedLine.startsWith("default") &&
-        !trimmedLine.match(/^#\s*pragma/) &&
+        !trimmedLine.match(/^\s*(?:#\s*)?pragma\b/i) &&
         !trimmedLine.startsWith("@")
       ) {
         return [false, i + 1, this.lines[i]];
@@ -322,6 +322,27 @@ class Lexer {
   };
 
   /**
+   * Reads the payload text after a `pragma` (or `#pragma`) keyword,
+   * consuming to the end of the current line. Mirrors the logic used
+   * for the legacy `#pragma` form so both syntaxes produce identical
+   * Token.Pragma values.
+   */
+  private readPragmaPayload = (): string => {
+    while (this.cursor < this.input.length && (this.peek() === " " || this.peek() === "\t")) {
+      this.cursor++;
+    }
+    let pragmaText = "";
+    while (this.cursor < this.input.length && !isNewline(this.peek())) {
+      pragmaText += this.readChar();
+    }
+    pragmaText = pragmaText.trimEnd();
+    if (pragmaText.endsWith(";")) {
+      pragmaText = pragmaText.slice(0, -1).trimEnd();
+    }
+    return pragmaText;
+  };
+
+  /**
    * Reds a keyword or identifier.
    * If the character sequence matches a keyword, returns the corresponding token.
    * Otherwise, treats the sequence as an identifier.
@@ -330,6 +351,10 @@ class Lexer {
    */
   readKeywordOrIdentifier = (char: string): [Token, string] => {
     const identifier = char + this.readIdentifier();
+    if (identifier.toLowerCase() === 'pragma') {
+      const payload = this.readPragmaPayload();
+      return [Token.Pragma, payload];
+    }
     return [lookup(identifier), identifier];
   };
 
@@ -598,26 +623,10 @@ class Lexer {
          while (tempCursor < this.input.length && (this.input[tempCursor] === " " || this.input[tempCursor] === "\t")) {
            tempCursor++;
          }
-         if (
-           this.input[tempCursor] == "p" &&
-           this.input[tempCursor + 1] == "r" &&
-           this.input[tempCursor + 2] == "a" &&
-           this.input[tempCursor + 3] == "g" &&
-           this.input[tempCursor + 4] == "m" &&
-           this.input[tempCursor + 5] == "a"
-         ) {
+         const next6 = this.input.slice(tempCursor, tempCursor + 6).toLowerCase();
+         if (next6 === "pragma") {
            this.cursor = tempCursor + 6;
-           while (this.cursor < this.input.length && (this.peek() === " " || this.peek() === "\t")) {
-             this.cursor++;
-           }
-           let pragmaText = "";
-           while (this.cursor < this.input.length && !isNewline(this.peek())) {
-             pragmaText += this.readChar();
-           }
-           pragmaText = pragmaText.trimEnd();
-           if (pragmaText.endsWith(";")) {
-             pragmaText = pragmaText.slice(0, -1).trimEnd();
-           }
+           const pragmaText = this.readPragmaPayload();
            result = [Token.Pragma, pragmaText];
          } else if (
            this.input[this.cursor] == "d" &&

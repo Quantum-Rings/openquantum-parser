@@ -64,4 +64,18 @@ qubit[2] q;`;
     expect(pragmaNode.name).toBe('braket');
     expect(pragmaNode.command).toBe('verbatim');
   });
+
+  it('parses bare pragma (official OpenQASM 3 spec form) without #', () => {
+    const source = `OPENQASM 3.0;
+pragma braket verbatim
+qubit[2] q;`;
+
+    const result = parseString(source);
+    const ast = result.ast;
+
+    const pragmaNode = ast.find((node: any) => node instanceof PragmaStatement);
+    expect(pragmaNode).toBeDefined();
+    expect(pragmaNode.name).toBe('braket');
+    expect(pragmaNode.command).toBe('verbatim');
+  });
 });
