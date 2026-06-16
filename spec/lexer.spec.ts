@@ -3,7 +3,7 @@ import * as fs from "fs";
 import { lex } from "../src/lexer";
 import { Token as Qasm2Token } from "../src/qasm2/token";
 import { Token as Qasm3Token } from "../src/qasm3/token";
-import { BadGateError, MissingSemicolonError } from "../src/errors";
+import { BadGateError, MissingSemicolonError, BadStringLiteralError } from "../src/errors";
 import { tokenSet } from "./tokens/index";
 
 const genericTests = "spec/qasm/generic";
@@ -137,6 +137,8 @@ describe("lexer", () => {
               expect(failingLexer).toThrowError(MissingSemicolonError);
             } else if (scriptName.includes("bad_gate")) {
               expect(failingLexer).toThrowError(BadGateError);
+            } else if (scriptName.includes("block_comment") || scriptName.includes("unterminated_block")) {
+              expect(failingLexer).toThrowError(BadStringLiteralError);
             }
           });
 
@@ -176,6 +178,98 @@ describe("lexer", () => {
       const tokens = lex(qasm, 0, 3);
       expect(tokens[0][0]).toBe(Qasm3Token.Pragma);
       expect(tokens[0][1]).toBe("ibm.max_temp 0.4");
+    });
+  });
+
+  describe("comment handling", () => {
+    describe("QASM 2.0", () => {
+      it("should allow // comments with leading whitespace inside program bodies (regression for verifyInput)", () => {
+        const qasm = `OPENQASM 2.0;
+qreg q[2];
+creg c[2];
+
+ // leading space comment
+  // two spaces
+h q[0];
+cx q[0], q[1];
+`;
+
+        // Should not throw MissingSemicolonError from verifyInput
+        const tokens = lex(qasm, 0, 2);
+        expect(tokens.length).toBeGreaterThan(0);
+      });
+
+      it("should allow trailing // comments after real commands, gates, and braces", () => {
+        const qasm = `OPENQASM 2.0;
+qreg q[2]; // after qreg
+gate my a, b {
+  h a; // inside gate
+  cx a, b;
+} // after gate close
+h q[0]; // after gate application
+`;
+
+        const tokens = lex(qasm, 0, 2);
+        expect(tokens.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe("QASM 3.0", () => {
+      it("should skip multi-line /* */ blocks that do not use * prefixes on continuation lines", () => {
+        const qasm = `OPENQASM 3.0;
+/* arbitrary
+   multi line
+   block comment without stars */
+qubit[1] q;
+h q[0];
+`;
+
+        const tokens = lex(qasm, 0, 3);
+        // Should produce real tokens for OPENQASM, qubit decl, h gate — no tokens from inside the block
+        expect(tokens.some(t => t[0] === Qasm3Token.Qubit)).toBe(true);
+        expect(tokens.some(t => t[0] === Qasm3Token.Id && t[1] === "h")).toBe(true);
+      });
+
+      it("should allow trailing /* */ block comments after statements on the same line", () => {
+        const qasm = `OPENQASM 3.0; qubit[2] q; h q[0]; /* trailing */ x q[0];`;
+        const tokens = lex(qasm, 0, 3);
+        expect(tokens.length).toBeGreaterThan(5);
+      });
+
+      it("must not interpret /* ... */ inside a string literal as a block comment start", () => {
+        const qasm = `OPENQASM 3.0;
+qubit[1] q;
+include "weird/path/*not/a/comment*/file.inc"; // string content, not comment
+h q[0];
+`;
+        const tokens = lex(qasm, 0, 3);
+        // The string token should contain the literal /* ... */ text
+        const stringTokens = tokens.filter(t => t[0] === Qasm3Token.String);
+        expect(stringTokens.some(t => String(t[1]).includes("/*not/a/comment*/"))).toBe(true);
+      });
+
+      it("should allow a properly terminated block comment at end of file", () => {
+        const qasm = `OPENQASM 3.0;
+qubit[1] q;
+h q[0];
+/* comment at EOF */`;
+        const tokens = lex(qasm, 0, 3);
+        expect(tokens.length).toBeGreaterThan(0);
+      });
+
+      it("should treat the first */ as the closer (no nesting)", () => {
+        const qasm = `OPENQASM 3.0;
+qubit[1] q;
+/* outer /* inner */ h q[0];
+x q[0];
+`;
+        const tokens = lex(qasm, 0, 3);
+        // The first */ (after "inner") closes the block early.
+        // " h q[0];" after it on the same line is real code.
+        // So both h and x should be seen as real statements.
+        expect(tokens.some(t => t[0] === Qasm3Token.Id && t[1] === "h")).toBe(true);
+        expect(tokens.some(t => t[0] === Qasm3Token.Id && t[1] === "x")).toBe(true);
+      });
     });
   });
 });

@@ -1,5 +1,5 @@
 import { parseString } from '../src/main';
-import { QReg } from '../src/qasm2/ast';
+import { QReg, Gate } from '../src/qasm2/ast';
 import { QuantumDeclaration } from '../src/qasm3/ast';
 
 describe('OpenQASM Version Autodetection', () => {

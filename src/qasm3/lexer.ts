@@ -182,36 +182,71 @@ class Lexer {
    * @return A tuple of the status and if False, returns the problematic line.
    */
   verifyInput = (): [boolean, number | null, string | null] => {
+    let inBlockComment = false;
     for (let i = 0; i < this.lines.length; i++) {
-      const trimmedLine = this.lines[i].trim();
-      if (
-        !trimmedLine.startsWith("//") &&
-        !trimmedLine.startsWith("/*") &&
-        !trimmedLine.startsWith("*") &&
-        !trimmedLine.startsWith("*/") &&
-        trimmedLine.length > 0 &&
-        !trimmedLine.startsWith("gate") &&
-        trimmedLine !== "{" &&
-        trimmedLine !== "}" &&
-        !trimmedLine.includes(";") &&
-        !trimmedLine.startsWith("def") &&
-        !trimmedLine.startsWith("if") &&
-        !trimmedLine.match(/^(?:}\s*)?else\b/) &&
-        !trimmedLine.startsWith("for") &&
-        !trimmedLine.startsWith("while") &&
-        !trimmedLine.startsWith("switch") &&
-        !trimmedLine.startsWith("case") &&
-        !trimmedLine.startsWith("cal") &&
-        !trimmedLine.startsWith("defcal") &&
-        !trimmedLine.startsWith("box") &&
-        !trimmedLine.startsWith("array") &&
-        !trimmedLine.startsWith("{") &&
-        !trimmedLine.startsWith("default") &&
-        !trimmedLine.match(/^\s*(?:#\s*)?pragma\b/i) &&
-        !trimmedLine.startsWith("@")
-      ) {
-        return [false, i + 1, this.lines[i]];
+      const rawLine = this.lines[i];
+      let cleaned = "";
+      let j = 0;
+      while (j < rawLine.length) {
+        if (inBlockComment) {
+          if (rawLine[j] === "*" && j + 1 < rawLine.length && rawLine[j + 1] === "/") {
+            inBlockComment = false;
+            j += 2;
+            continue;
+          }
+          j++;
+          continue;
+        }
+        // Check for start of block comment
+        if (rawLine[j] === "/" && j + 1 < rawLine.length && rawLine[j + 1] === "*") {
+          inBlockComment = true;
+          j += 2;
+          continue;
+        }
+        // Check for line comment (//) — everything after is ignored for this check
+        if (rawLine[j] === "/" && j + 1 < rawLine.length && rawLine[j + 1] === "/") {
+          break;
+        }
+        cleaned += rawLine[j];
+        j++;
       }
+      const trimmed = cleaned.trim();
+
+      if (trimmed.length === 0) {
+        continue;
+      }
+
+      // Re-apply the "this line does not require a semicolon" rules on the non-comment part
+      if (
+        trimmed.startsWith("//") ||
+        trimmed.startsWith("/*") ||
+        trimmed.startsWith("*") ||
+        trimmed.startsWith("*/") ||
+        trimmed === "{" ||
+        trimmed === "}" ||
+        trimmed.includes(";") ||
+        trimmed.startsWith("gate") ||
+        trimmed.startsWith("def") ||
+        trimmed.startsWith("if") ||
+        trimmed.match(/^(?:}\s*)?else\b/) ||
+        trimmed.startsWith("for") ||
+        trimmed.startsWith("while") ||
+        trimmed.startsWith("switch") ||
+        trimmed.startsWith("case") ||
+        trimmed.startsWith("cal") ||
+        trimmed.startsWith("defcal") ||
+        trimmed.startsWith("box") ||
+        trimmed.startsWith("array") ||
+        trimmed.startsWith("{") ||
+        trimmed.startsWith("default") ||
+        trimmed.match(/^\s*(?:#\s*)?pragma\b/i) ||
+        trimmed.startsWith("@")
+      ) {
+        continue;
+      }
+
+      // If we reach here, this "cleaned" line still looks like it needs a ; but has none
+      return [false, i + 1, this.lines[i]];
     }
     return [true, null, null];
   };
@@ -272,8 +307,19 @@ class Lexer {
       char = this.readChar();
       nextChar = this.peek() || "";
     }
-    if (this.cursor < this.input.length) {
-      this.readChar();
+    if (`${char}${nextChar}` === multiLineCommentTerminator) {
+      if (this.cursor < this.input.length) {
+        this.readChar(); // consume the final char of */
+      }
+    } else {
+      // Unterminated block comment
+      throwLexerError(
+        BadStringLiteralError,
+        this.getLineNumber(this.cursor),
+        this.getColumnNumber(this.cursor),
+        this.getCurrentLine(this.cursor),
+        "Unterminated block comment",
+      );
     }
   };
 

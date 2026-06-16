@@ -177,15 +177,20 @@ class Lexer {
    */
   verifyInput = (): [boolean, number | null, string | null] => {
     for (let i = 0; i < this.lines.length; i++) {
-      const line = this.lines[i];
+      const trimmedLine = this.lines[i].trim();
+      if (trimmedLine.startsWith("//")) {
+        continue; // line comment (supported in OpenQASM 2.0)
+      }
+      // Strip trailing // comments (only comment form supported in QASM 2.0)
+      // so "} // foo", "gate x { // bar", "h q[0]; // cmt" etc. are still valid.
+      const noComment = trimmedLine.split("//")[0].trim();
       if (
-        !line.startsWith("//") &&
-        !(line.length == 0) &&
-        !line.includes("gate") &&
-        !(line.trim() == "{" || line.trim() == "}") &&
-        !line.includes(";")
+        !(noComment.length == 0) &&
+        !noComment.includes("gate") &&
+        !(noComment == "{" || noComment == "}") &&
+        !noComment.includes(";")
       ) {
-        return [false, i + 1, line];
+        return [false, i + 1, this.lines[i]];
       }
     }
     return [true, null, null];
@@ -409,6 +414,16 @@ class Lexer {
         if (this.peekEq("/")) {
           this.skipComment();
           return;
+        } else if (this.peekEq("*")) {
+          // Block comments (/* */) are not part of the OpenQASM 2.0 specification.
+          // Only // line comments are supported.
+          throwLexerError(
+            BadStringLiteralError,
+            this.getLineNumber(this.cursor),
+            this.getColumnNumber(this.cursor),
+            this.getCurrentLine(this.cursor),
+            "Block comments (/* */) are not supported in OpenQASM 2.0 (only // line comments are)",
+          );
         } else {
           result = [Token.Divide];
         }

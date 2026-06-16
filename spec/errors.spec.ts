@@ -115,6 +115,13 @@ qreg q[2];
 barrier q[0], ;`;
       expect(() => parseString(code, 2)).toThrowError(BadArgumentError);
     });
+
+    it("should throw BadStringLiteralError for block comments (/* */) which are not supported in QASM 2.0", () => {
+      const code = `OPENQASM 2.0;
+qreg q[1];
+h q[0]; /* not allowed in 2.0 */`;
+      expect(() => parseString(code, 2)).toThrowError(BadStringLiteralError);
+    });
   });
 
   describe("QASM 3.0", () => {
@@ -166,6 +173,14 @@ gate mygate(a b) q { }`;
 qubit[2] q;
 barrier q[0], ;`;
       expect(() => parseString(code, 3)).toThrowError(BadExpressionError);
+    });
+
+    it("should throw BadStringLiteralError for unterminated block comment", () => {
+      const code = `OPENQASM 3.0;
+/* this block is never closed
+qubit[1] q;
+`;
+      expect(() => parseString(code, 3)).toThrowError(BadStringLiteralError);
     });
   });
 });
