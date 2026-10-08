@@ -143,6 +143,24 @@ class Parser {
       "cry",
       "swap",
       "cswap",
+      "id",
+      // Qiskit legacy qelib1.inc, also shipped by QASMBench.
+      "u0",
+      "rxx",
+      "rzz",
+      "rccx",
+      "rc3x",
+      "c3x",
+      "c3sqrtx",
+      "c4x",
+      // Qiskit legacy qelib1.inc only. Absent from the QASMBench header.
+      "u",
+      "p",
+      "sx",
+      "sxdg",
+      "cp",
+      "csx",
+      "cu",
     ];
   }
 
