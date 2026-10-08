@@ -114,4 +114,5 @@ export const ipeTokens = [
   [3, 1],
   [8],
   [16],
+  [1],
 ];

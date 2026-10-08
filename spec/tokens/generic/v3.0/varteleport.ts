@@ -204,4 +204,5 @@ export const varTeleportTokens = [
   [25, "measure"],
   [5, "io"],
   [8],
+  [1],
 ];

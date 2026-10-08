@@ -31,4 +31,5 @@ export const switchTokens = [
   [5, "q"],
   [8],
   [16],
+  [1],
 ];

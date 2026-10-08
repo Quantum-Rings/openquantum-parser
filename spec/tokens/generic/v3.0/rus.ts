@@ -146,4 +146,5 @@ export const rusTokens = [
   [25, "measure"],
   [5, "input_qubit"],
   [8],
+  [1],
 ];

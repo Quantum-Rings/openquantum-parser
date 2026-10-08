@@ -47,4 +47,5 @@ export const calibrationTokens = [
   [27, '"01"'],
   [8],
   [16],
+  [1],
 ];

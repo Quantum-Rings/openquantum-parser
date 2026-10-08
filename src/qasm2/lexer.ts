@@ -210,11 +210,12 @@ class Lexer {
     let token: [Token, (number | string) | undefined, number, number, string];
     const verifyInputResult = this.verifyInput();
     if (!verifyInputResult[0]) {
+      const lineText = verifyInputResult[2] ?? "";
       throwLexerError(
         MissingSemicolonError,
         verifyInputResult[1],
-        0,
-        verifyInputResult[2],
+        lineText.trimEnd().length + 1,
+        lineText,
         "Missing semicolon",
       );
     }
@@ -223,6 +224,9 @@ class Lexer {
       if (token) {
         tokens.push(token);
       }
+    }
+    if (tokens.length === 0 || tokens[tokens.length - 1][0] !== Token.EndOfFile) {
+      tokens.push(this.endOfFileToken());
     }
     return tokens;
   };
@@ -337,6 +341,31 @@ class Lexer {
   };
 
   /**
+   * End-of-file token at the insertion point after the last non-whitespace
+   * character. A trailing newline is not its own location: the semicolon
+   * belongs on the line that still has code.
+   */
+  private endOfFileToken = (): [Token, undefined, number, number, string] => {
+    let cursor = this.input.length;
+    while (cursor > 0 && " \t\n\r\v".indexOf(this.input[cursor - 1]) > -1) {
+      cursor -= 1;
+    }
+    if (cursor === 0) {
+      return [Token.EndOfFile, undefined, 1, 1, this.lines[0] ?? ""];
+    }
+    const line = this.getLineNumber(cursor - 1);
+    const lineIndex = line - 1;
+    const lineStart = this.lineStartIndices[lineIndex] ?? 0;
+    return [
+      Token.EndOfFile,
+      undefined,
+      line,
+      cursor - lineStart + 1,
+      this.lines[lineIndex] ?? "",
+    ];
+  };
+
+  /**
    * Lexes the next token.
    * @return The next token and its corresponding value.
    */
@@ -350,7 +379,7 @@ class Lexer {
     const lineText = this.lines[lineIndex];
 
     if (this.cursor == this.input.length) {
-      return [Token.EndOfFile, undefined, line, col, lineText];
+      return this.endOfFileToken();
     }
 
     const char = this.peek();

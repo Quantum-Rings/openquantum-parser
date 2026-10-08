@@ -22,4 +22,5 @@ export const annotationsTokens = [
   [10, undefined, 11, 5, "cx q, q;"],
   [5, "q", 11, 7, "cx q, q;"],
   [8, undefined, 11, 8, "cx q, q;"],
+  [1],
 ];
