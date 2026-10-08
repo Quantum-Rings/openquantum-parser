@@ -1,4 +1,9 @@
 /**
+ * Modified by Quantum Rings, 2026.
+ * Derived from qasm-ts (https://github.com/comp-phys-marc/qasm-ts), Apache-2.0.
+ */
+
+/**
  * Error classes for QASM parsing and validation
  *
  * This module provides specific error types for different parsing failures,

@@ -1,4 +1,9 @@
 /**
+ * Modified by Quantum Rings, 2026.
+ * Derived from qasm-ts (https://github.com/comp-phys-marc/qasm-ts), Apache-2.0.
+ */
+
+/**
  * OpenQASM 2.0 Lexical Analyzer
  *
  * This module implements the lexer for OpenQASM 2.0, which provides a simpler

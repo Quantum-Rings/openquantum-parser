@@ -1,6 +1,11 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 
 /**
+ * Modified by Quantum Rings, 2026.
+ * Derived from qasm-ts (https://github.com/comp-phys-marc/qasm-ts), Apache-2.0.
+ */
+
+/**
  * OpenQASM 3.0 Parser Implementation
  *
  * This module implements a recursive descent parser for OpenQASM 3.0 that transforms

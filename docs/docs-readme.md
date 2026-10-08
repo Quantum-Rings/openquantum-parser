@@ -1,19 +1,17 @@
-# QASM TypeScript Documentation
+# openquantum-parser
 
-OpenQASM, the low-level programming language for quantum circuit specification, implemented in TypeScript.
+OpenQASM 2.0 and 3.x parser in TypeScript, maintained by Quantum Rings.
 
-QASM-TS 2.0 is an implementation of a compiler frontend for OpenQASM 2.0 and 3.0. It includes a lexer and a parser of the OpenQASM language. The source is parsed into an Intermediate Representation (IR): an Abstract Syntax Tree (AST) that captures program structure including control flow and data flow.
+This package lexes and parses OpenQASM into an abstract syntax tree. Version 1.0.0 is a fork of [qasm-ts](https://github.com/comp-phys-marc/qasm-ts) at commit `a96b8e2` (23 September 2025). Copyright 2019 Marcus Edwards. Quantum Rings' changes are Copyright 2026 Open Quantum / Quantum Rings. See `NOTICE` in the repository.
 
-The package is aimed at enabling implementations of verification and validation software (such as semantic and static analyzers), compilers and more. These tools may be instrumental in the formalization of hybrid quantum-classical computing.
-
-Language documentation is provided by IBM [here](https://openqasm.com).
+Language documentation is at [openqasm.com](https://openqasm.com).
 
 ## Quick Start
 
 ### Installation
 
 ```bash
-npm install qasm-ts
+npm install @quantum-rings/openquantum-parser
 ```
 
 ### Basic Usage
@@ -21,7 +19,7 @@ npm install qasm-ts
 Parse from an OpenQASM string snippet:
 
 ```typescript
-import { parseString } from "qasm-ts";
+import { parseString } from "@quantum-rings/openquantum-parser";
 
 const qasmCode = `
 OPENQASM 3.0;
@@ -31,32 +29,36 @@ h q[0];
 cx q[0], q[1];
 `;
 
-const ast = parseString(qasmCode);
+const result = parseString(qasmCode);
+console.log(result.version); // 3
+console.log(result.ast);
 ```
 
 Parse from an OpenQASM file:
 
 ```typescript
-import { parseFile } from "qasm-ts";
+import { parseFile } from "@quantum-rings/openquantum-parser";
 
-const ast = parseFile("./my-circuit.qasm");
+const result = parseFile("./my-circuit.qasm");
 
 // Specify OpenQASM version explicitly
-const ast2 = parseFile("./legacy-circuit.qasm", 2); // OpenQASM 2.0
-const ast3 = parseFile("./modern-circuit.qasm", 3); // OpenQASM 3.0
+const legacy = parseFile("./legacy-circuit.qasm", 2); // OpenQASM 2.0
+const modern = parseFile("./modern-circuit.qasm", 3); // OpenQASM 3.0
 ```
+
+`parseString` and `parseFile` return `{ ast, version }`. `ast` is an array of nodes, or a string when `stringify` is true. When `version` is omitted, the parser reads the `OPENQASM` header and defaults to 3.
 
 ### Working with the AST
 
 ```typescript
 // Get verbose output with class names
-const verboseAst = parseString(qasmCode, 3, true);
+const verbose = parseString(qasmCode, 3, true);
 
 // Get stringified JSON output
-const jsonAst = parseString(qasmCode, 3, false, true);
+const json = parseString(qasmCode, 3, false, true);
 
 // Both verbose and stringified
-const verboseJsonAst = parseString(qasmCode, 3, true, true);
+const verboseJson = parseString(qasmCode, 3, true, true);
 ```
 
 ## Example I/O
@@ -78,7 +80,7 @@ barrier q;
 
 ```
 
-### Output: Abstract Syntax Tree
+### Output: `result.ast`
 
 ```
 [
@@ -124,8 +126,8 @@ barrier q;
 
 Start here for the main parsing functions:
 
-- **[parseString](functions/Main_Functions.parseString.html)** - Parse OpenQASM code from a string
-- **[parseFile](functions/Main_Functions.parseFile.html)** - Parse OpenQASM code from a file
+- **[parseString](functions/main.parseString.html)** - Parse OpenQASM code from a string
+- **[parseFile](functions/main.parseFile.html)** - Parse OpenQASM code from a file
 
 ### Tokenization
 
@@ -157,18 +159,18 @@ Understand the Parser:
 
 ### Utilities and Internals
 
-- **[Error Handling](modules/Error_Handling.html)** - All error types and their usage
+- **[Error Handling](modules/errors.html)** - All error types and their usage
 - **[Version Management](modules/Version_Management.html)** - Version detection and handling
 
 Navigate using the sidebar or search functionality to find specific functions and classes.
 
-## New In Version 2.0.0
+## Version 1.0.0
 
-- Support for the OpenQASM 3.0 spec while retaining OpenQASM 2.0 backwards compatibility.
+OpenQASM 2.0 and 3.x parsing comes from qasm-ts. Since the fork, this package returns `{ ast, version }`, accepts OpenQASM 3.1 on the version 3 parser, and parses hardware qubits, `pragma`, annotations, and calibration grammar. AST nodes carry line and column.
 
 ## Source Code
 
-Feel free to clone, fork, comment or contribute on [GitHub](https://github.com/comp-phys-marc/qasm-ts)!
+Source and issues: [Quantum-Rings/openquantum-parser](https://github.com/Quantum-Rings/openquantum-parser). The original project is [comp-phys-marc/qasm-ts](https://github.com/comp-phys-marc/qasm-ts).
 
 ## References
 
@@ -183,6 +185,8 @@ Another strongly typed implementation from which this project took some inspirat
 
 ## License
 
+Copyright 2026 Open Quantum / Quantum Rings
+
 Copyright 2019 Marcus Edwards
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at:
@@ -191,12 +195,12 @@ Licensed under the Apache License, Version 2.0 (the "License"); you may not use 
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
-## How to Cite
+## Prior work
 
-If you are using QASM-TS for research we appreciate any citations. Please read and cite our [paper](https://doi.org/10.21105/joss.08696) published with the Journal of Open Source Software.
+Kim and Edwards described the original qasm-ts package in the Journal of Open Source Software. That article does not review this fork.
 
 ```
-@article{Kim[2025,
+@article{Kim_2025,
   doi = {10.21105/joss.08696},
   url = {https://doi.org/10.21105/joss.08696},
   year = {2025},
@@ -204,7 +208,7 @@ If you are using QASM-TS for research we appreciate any citations. Please read a
   volume = {10},
   number = {113},
   pages = {8696},
-  author = {Kim[, Sean and Edwards[, Marcus},
+  author = {Kim, Sean and Edwards, Marcus},
   title = {Enabling the Verification and Formalization of Hybrid Quantum-Classical Computing with OpenQASM 3.0 compatible QASM-TS 2.0},
   journal = {Journal of Open Source Software}
 }

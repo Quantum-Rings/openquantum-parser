@@ -1,4 +1,9 @@
 /**
+ * Modified by Quantum Rings, 2026.
+ * Derived from qasm-ts (https://github.com/comp-phys-marc/qasm-ts), Apache-2.0.
+ */
+
+/**
  * Main lexer interface for tokenizing QASM code
  *
  * The lexer is responsible for breaking down QASM source code into tokens

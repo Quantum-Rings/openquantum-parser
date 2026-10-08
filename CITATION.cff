@@ -1,34 +1,43 @@
 cff-version: "1.2.0"
+title: openquantum-parser
+message: >-
+  If you use this software, cite openquantum-parser by Quantum Rings.
+  This parser is derived from qasm-ts. The Journal of Open Source
+  Software article cited under references describes that original
+  package. It does not review this fork.
+type: software
 authors:
-- family-names: Kim
-  given-names: Sean
-  orcid: "https://orcid.org/0009-0006-1223-1895"
-- family-names: Edwards
-  given-names: Marcus
-  orcid: "https://orcid.org/0000-0001-6591-9585"
-doi: 10.5281/zenodo.17144767
-message: If you use this software, please cite our article in the
-  Journal of Open Source Software.
+  - name: Quantum Rings
+    website: "https://www.openquantum.com"
+version: "1.0.0"
+license: Apache-2.0
+repository-code: "https://github.com/Quantum-Rings/openquantum-parser"
+url: "https://github.com/Quantum-Rings/openquantum-parser"
 preferred-citation:
+  type: software
+  title: openquantum-parser
   authors:
-  - family-names: Kim
-    given-names: Sean
-    orcid: "https://orcid.org/0009-0006-1223-1895"
-  - family-names: Edwards
-    given-names: Marcus
-    orcid: "https://orcid.org/0000-0001-6591-9585"
-  date-published: 2025-09-17
-  doi: 10.21105/joss.08696
-  issn: 2475-9066
-  issue: 113
-  journal: Journal of Open Source Software
-  publisher:
-    name: Open Journals
-  start: 8696
-  title: Enabling the Verification and Formalization of Hybrid
-    Quantum-Classical Computing with OpenQASM 3.0 compatible QASM-TS 2.0
-  type: article
-  url: "https://joss.theoj.org/papers/10.21105/joss.08696"
-  volume: 10
-title: Enabling the Verification and Formalization of Hybrid
-  Quantum-Classical Computing with OpenQASM 3.0 compatible QASM-TS 2.0
+    - name: Quantum Rings
+  year: 2026
+  version: "1.0.0"
+  license: Apache-2.0
+  url: "https://github.com/Quantum-Rings/openquantum-parser"
+references:
+  - type: article
+    title: >-
+      Enabling the Verification and Formalization of Hybrid
+      Quantum-Classical Computing with OpenQASM 3.0 compatible QASM-TS 2.0
+    authors:
+      - family-names: Kim
+        given-names: Sean
+        orcid: "https://orcid.org/0009-0006-1223-1895"
+      - family-names: Edwards
+        given-names: Marcus
+        orcid: "https://orcid.org/0000-0001-6591-9585"
+    doi: 10.21105/joss.08696
+    year: 2025
+    journal: Journal of Open Source Software
+    volume: 10
+    issue: 113
+    start: 8696
+    url: "https://joss.theoj.org/papers/10.21105/joss.08696"

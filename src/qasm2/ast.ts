@@ -1,4 +1,9 @@
 /**
+ * Modified by Quantum Rings, 2026.
+ * Derived from qasm-ts (https://github.com/comp-phys-marc/qasm-ts), Apache-2.0.
+ */
+
+/**
  * OpenQASM 2.0 Abstract Syntax Tree Node Definitions
  *
  * This module defines the AST node classes for OpenQASM 2.0, which provides

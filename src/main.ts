@@ -1,7 +1,12 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 
 /**
- * Main parsing functions for qasm-ts - the primary entry points for parsing OpenQASM code
+ * Modified by Quantum Rings, 2026.
+ * Derived from qasm-ts (https://github.com/comp-phys-marc/qasm-ts), Apache-2.0.
+ */
+
+/**
+ * Main parsing functions for openquantum-parser.
  * @module Main Functions
  */
 
@@ -38,7 +43,7 @@ export interface ParseResult {
  *
  * @example Basic OpenQASM 3.0 parsing
  * ```typescript
- * import { parseString } from 'qasm-ts';
+ * import { parseString } from '@quantum-rings/openquantum-parser';
  *
  * const qasmCode = `
  * OPENQASM 3.0;
@@ -125,7 +130,7 @@ export function parseString(
  *
  * @example Parse a QASM file
  * ```typescript
- * import { parseFile } from 'qasm-ts';
+ * import { parseFile } from '@quantum-rings/openquantum-parser';
  *
  * // Parse OpenQASM 3.0 file
  * const result = parseFile('./my-circuit.qasm');
@@ -219,7 +224,7 @@ function toQasm(node: any, version: number): string {
  *
  * @example Unparsing an AST
  * ```typescript
- * import { parseString, unparse } from 'qasm-ts';
+ * import { parseString, unparse } from '@quantum-rings/openquantum-parser';
  *
  * const qasm = 'OPENQASM 3.0;\n#pragma braket verbatim;';
  * const result = parseString(qasm);

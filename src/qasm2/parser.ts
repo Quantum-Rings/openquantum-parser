@@ -1,4 +1,9 @@
 /**
+ * Modified by Quantum Rings, 2026.
+ * Derived from qasm-ts (https://github.com/comp-phys-marc/qasm-ts), Apache-2.0.
+ */
+
+/**
  * OpenQASM 2.0 Parser Implementation
  *
  * This module implements a parser for OpenQASM 2.0 that focuses on the core

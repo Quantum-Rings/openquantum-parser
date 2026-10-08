@@ -1,6 +1,11 @@
 /* eslint-disable no-useless-escape */
 
 /**
+ * Modified by Quantum Rings, 2026.
+ * Derived from qasm-ts (https://github.com/comp-phys-marc/qasm-ts), Apache-2.0.
+ */
+
+/**
  * OpenQASM 3.0 Lexical Analyzer
  *
  * This module implements the lexer for OpenQASM 3.0, which transforms source code

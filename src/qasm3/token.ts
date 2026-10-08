@@ -1,4 +1,9 @@
 /**
+ * Modified by Quantum Rings, 2026.
+ * Derived from qasm-ts (https://github.com/comp-phys-marc/qasm-ts), Apache-2.0.
+ */
+
+/**
  * OpenQASM 3.0 Token Definitions and Utilities
  *
  * This module defines all the token types used in OpenQASM 3.0 syntax, which

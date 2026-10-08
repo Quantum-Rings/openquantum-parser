@@ -1,4 +1,9 @@
 /**
+ * Modified by Quantum Rings, 2026.
+ * Derived from qasm-ts (https://github.com/comp-phys-marc/qasm-ts), Apache-2.0.
+ */
+
+/**
  * Main parser interface for generating AST from tokens
  *
  * The parser is responsible for transforming a stream of tokens into an Abstract

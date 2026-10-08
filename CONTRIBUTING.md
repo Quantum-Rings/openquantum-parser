@@ -1,3 +1,17 @@
-To get started contributing to QASM-TS, please see the open issues for a place to start.
-Alternatively, you are welcome to create any issues which you feel may capture changes, improvements or additions to the package that would be useful. These may be bug reports or enhancement requests. These will be reviewed in a timely manner by a maintainer. If you are able to implement any desired functionality or bug fixes yourself, we also welcome and promise to review any pull requests. Please simply fork the repository and create a branch in your fork with the changes in question. When you create your pull request, make sure to target our repo.
-Thanks!
+# Contributing
+
+openquantum-parser is maintained by Quantum Rings.
+
+Open issues and pull requests on
+https://github.com/Quantum-Rings/openquantum-parser.
+
+This tree is a fork of qasm-ts
+(https://github.com/comp-phys-marc/qasm-ts), licensed under
+Apache-2.0. A change merged here is not a contribution to
+qasm-ts. Send anything meant for the original package to that
+repository.
+
+Keep the Apache-2.0 `LICENSE`, the `NOTICE` file, and the
+copyright lines in the README. New source files should carry
+a copyright and Apache-2.0 notice. Modified upstream files
+should keep the "Modified by Quantum Rings" notice.

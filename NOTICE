@@ -1,0 +1,19 @@
+openquantum-parser
+Copyright 2026 Open Quantum / Quantum Rings
+
+This product includes software developed as qasm-ts
+(https://github.com/comp-phys-marc/qasm-ts),
+Copyright 2019 Marcus Edwards, with later work by Sean Kim
+and other contributors. Licensed under the Apache License 2.0.
+
+Forked from commit a96b8e2 (2025-09-23). Quantum Rings has
+modified the lexer, parser, AST, errors, and tests since that commit.
+
+The programs under spec/qasm/generic are the upstream qasm-ts
+conformance corpus. Several of those programs come from the
+OpenQASM project (https://github.com/openqasm/openqasm),
+which is also Apache-2.0.
+
+The paper/ directory is the unchanged Journal of Open Source
+Software article for the original qasm-ts package. It does not
+describe this fork. See paper/README.md.
