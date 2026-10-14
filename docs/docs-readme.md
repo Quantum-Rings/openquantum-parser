@@ -46,20 +46,7 @@ const legacy = parseFile("./legacy-circuit.qasm", 2); // OpenQASM 2.0
 const modern = parseFile("./modern-circuit.qasm", 3); // OpenQASM 3.0
 ```
 
-`parseString` and `parseFile` return `{ ast, version }`. `ast` is an array of nodes, or a string when `stringify` is true. When `version` is omitted, the parser reads the `OPENQASM` header and defaults to 3.
-
-### Working with the AST
-
-```typescript
-// Get verbose output with class names
-const verbose = parseString(qasmCode, 3, true);
-
-// Get stringified JSON output
-const json = parseString(qasmCode, 3, false, true);
-
-// Both verbose and stringified
-const verboseJson = parseString(qasmCode, 3, true, true);
-```
+`parseString` and `parseFile` return `{ ast, version }`. `ast` is an array of nodes. When `version` is omitted, the parser reads the `OPENQASM` header and defaults to 3.
 
 ## Example I/O
 

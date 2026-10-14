@@ -30,14 +30,12 @@ import { parseFile, parseString } from '@quantum-rings/openquantum-parser';
 
 `parseFile` takes a path to a `.qasm` file. `parseString` takes OpenQASM source. Both return a `ParseResult`:
 
-- `ast`: an array of AST nodes, or a string when `stringify` is true
+- `ast`: an array of AST nodes
 - `version`: the major version, `2` or `3`
 
-Optional arguments:
+Optional argument:
 
-1. `version`: A `number`, `OpenQASMVersion`, or `OpenQASMMajorVersion`. Chooses the QASM 2 or 3 lexer and parser. When omitted, the `OPENQASM` header is used. The default is version 3.
-2. `verbose`: When `true`, each node includes its class name. Default `false`.
-3. `stringify`: When `true`, `ast` is formatted JSON. Default `false`.
+`version`: A `number`, `OpenQASMVersion`, or `OpenQASMMajorVersion`. Chooses the QASM 2 or 3 lexer and parser. When omitted, the `OPENQASM` header is used. The default is version 3.
 
 ```ts
 const result = parseString('OPENQASM 3.0;\nqubit[1] q;');
