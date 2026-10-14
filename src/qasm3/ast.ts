@@ -61,18 +61,8 @@ class AstNode {
   annotations?: Annotation[];
   constructor(line?: number, column?: number) {
     this.type = this.constructor.name;
-    Object.defineProperty(this, 'line', {
-      value: line,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    });
-    Object.defineProperty(this, 'column', {
-      value: column,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    });
+    this.line = line;
+    this.column = column;
   }
 }
 

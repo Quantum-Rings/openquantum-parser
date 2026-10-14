@@ -484,20 +484,6 @@ class Parser {
       list.push(args[arg]);
     }
     applications.push(new ApplyGate(op, list, params, line, column));
-
-    Object.defineProperty(applications, "line", {
-      value: line,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    });
-    Object.defineProperty(applications, "column", {
-      value: column,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    });
-
     return applications;
   }
 

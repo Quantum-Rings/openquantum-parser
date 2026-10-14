@@ -65,7 +65,12 @@ function throwLexerError(
  * @return Whether the character is numeric.
  */
 function isNumeric(c: string): boolean {
-  return c !== undefined && (c == "." || c == "e" || c == "E" || c == "_" || !isNaN(parseInt(c)));
+  if (c === undefined || c.length === 0) return false;
+  if (c.length === 1) {
+    const code = c.charCodeAt(0);
+    return code === 46 || code === 69 || code === 95 || code === 101 || (code >= 48 && code <= 57);
+  }
+  return !isNaN(parseInt(c));
 }
 
 /**
@@ -75,14 +80,15 @@ function isNumeric(c: string): boolean {
  * @return Whether the character is a letter.
  */
 function isLetter(c: string, matchCase?: "upper" | "lower"): boolean {
-  if (c === undefined) return false;
+  if (c === undefined || c.length !== 1) return false;
+  const code = c.charCodeAt(0);
   switch (matchCase) {
     case "upper":
-      return /^[A-Z]$/.test(c);
+      return code >= 65 && code <= 90;
     case "lower":
-      return /^[a-z]$/.test(c);
+      return code >= 97 && code <= 122;
     default:
-      return /^[A-Za-z]$/.test(c);
+      return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
   }
 }
 
@@ -110,9 +116,17 @@ function isUnicode(c: string, excludePi?: boolean): boolean {
  * @param c - The character.
  * @return Whether the character is alphanumeric.
  */
+function isAlphaCode(code: number): boolean {
+  return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
 function isAlpha(c: string): boolean {
-  if (c === undefined) return false;
-  return /^[0-9a-zA-Z]+$/.test(c);
+  if (c === undefined || c.length === 0) return false;
+  if (c.length === 1) return isAlphaCode(c.charCodeAt(0));
+  for (let i = 0; i < c.length; i++) {
+    if (!isAlphaCode(c.charCodeAt(i))) return false;
+  }
+  return true;
 }
 
 /**
@@ -123,6 +137,11 @@ function isAlpha(c: string): boolean {
 function isNewline(c: string): boolean {
   if (c === undefined) return false;
   return /\n|\r(?!\n)|\u2028|\u2029|\r\n/.test(c);
+}
+
+/** Space, tab, newline, carriage return, and vertical tab. */
+function isSkippedWhitespace(code: number): boolean {
+  return code === 9 || code === 10 || code === 11 || code === 13 || code === 32;
 }
 
 /**
@@ -158,6 +177,10 @@ class Lexer {
   private lines: string[];
   /** Starting indices of each line. */
   private lineStartIndices: number[];
+  /** 1-based line containing `cursor`. */
+  private lineNumber = 1;
+  /** Index of the first character on `lineNumber`. */
+  private lineStart = 0;
 
   /**
    * Creates a lexer.
@@ -166,7 +189,7 @@ class Lexer {
    */
   constructor(input: string, cursor: number = 0) {
     this.input = input;
-    this.cursor = cursor;
+    this.cursor = 0;
     this.lines = this.input.split(/\n|\r(?!\n)|\u2028|\u2029|\r\n/);
     this.lineStartIndices = [0];
     const regex = /\n|\r(?!\n)|\u2028|\u2029|\r\n/g;
@@ -174,6 +197,7 @@ class Lexer {
     while ((match = regex.exec(this.input)) !== null) {
       this.lineStartIndices.push(match.index + match[0].length);
     }
+    if (cursor > 0) this.consumeTo(cursor);
   }
 
   /**
@@ -232,12 +256,51 @@ class Lexer {
   };
 
   /**
+   * Moves the cursor forward and counts newlines crossed on the way.
+   * A CRLF pair counts as one line break, including when the two characters
+   * are consumed by separate calls.
+   */
+  private consumeTo = (next: number): void => {
+    const from = this.cursor;
+    if (next > from) this.noteNewlines(from, next);
+    this.cursor = next;
+  };
+
+  private noteNewlines = (from: number, to: number): void => {
+    const input = this.input;
+    let i = from;
+    while (i < to) {
+      const code = input.charCodeAt(i);
+      if (code === 10 || code === 0x2028 || code === 0x2029) {
+        this.lineNumber++;
+        i++;
+        this.lineStart = i;
+      } else if (code === 13) {
+        if (i + 1 < to && input.charCodeAt(i + 1) === 10) {
+          this.lineNumber++;
+          i += 2;
+          this.lineStart = i;
+        } else if (i + 1 === to && i + 1 < input.length && input.charCodeAt(i + 1) === 10) {
+          i++;
+        } else {
+          this.lineNumber++;
+          i++;
+          this.lineStart = i;
+        }
+      } else {
+        i++;
+      }
+    }
+  };
+
+  /**
    * Reads a character and advances the cursor.
    * @param num - Optional cursor position modifier.
    */
   readChar = (num: number = 1): string => {
-    this.cursor += num;
-    return this.input[this.cursor - num];
+    const from = this.cursor;
+    this.consumeTo(from + num);
+    return this.input[from];
   };
 
   /**
@@ -323,9 +386,13 @@ class Lexer {
    * Advances the cusor past the next block of whitespace.
    */
   skipWhitespace = (): null => {
-    while (this.cursor < this.input.length && " \t\n\r\v".indexOf(this.peek()) > -1) {
-      this.cursor += 1;
+    const input = this.input;
+    const n = input.length;
+    let cursor = this.cursor;
+    while (cursor < n && isSkippedWhitespace(input.charCodeAt(cursor))) {
+      cursor++;
     }
+    this.consumeTo(cursor);
     return null;
   };
 
@@ -347,7 +414,7 @@ class Lexer {
    */
   private endOfFileToken = (): [Token, undefined, number, number, string] => {
     let cursor = this.input.length;
-    while (cursor > 0 && " \t\n\r\v".indexOf(this.input[cursor - 1]) > -1) {
+    while (cursor > 0 && isSkippedWhitespace(this.input.charCodeAt(cursor - 1))) {
       cursor -= 1;
     }
     if (cursor === 0) {
@@ -371,12 +438,9 @@ class Lexer {
    */
   nextToken = (): [Token, (number | string) | undefined, number, number, string] => {
     this.skipWhitespace();
-    const startCursor = this.cursor;
-    const line = this.getLineNumber(startCursor);
-    const lineIndex = line - 1;
-    const lineStart = this.lineStartIndices[lineIndex];
-    const col = startCursor - lineStart + 1;
-    const lineText = this.lines[lineIndex];
+    const line = this.lineNumber;
+    const col = this.cursor - this.lineStart + 1;
+    const lineText = this.lines[line - 1];
 
     if (this.cursor == this.input.length) {
       return this.endOfFileToken();

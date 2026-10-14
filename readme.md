@@ -17,7 +17,7 @@ Changes since that commit:
 - The OpenQASM 2 and 3 parsers keep one token array and pass an integer offset. They no longer copy the remaining token list with `slice` on every production.
 - Parse errors carry a source line, a column, and a readable message.
 - `parseFile` and `parseString` return `{ ast, version }`. When `version` is omitted, it is read from the `OPENQASM` header.
-- OpenQASM 3.1 input is accepted on the version 3 parser.
+- An `OPENQASM 3.1` header selects the version 3 parser. Anonymous statement blocks (`{ ... }`), which that version added, are parsed.
 - Hardware qubits, `pragma` (including a bare `pragma`), annotations, and calibration grammar (`defcal`).
 - AST nodes record line and column.
 - The test corpus was expanded against the OpenQASM 3.0 examples, and OpenQASM 2 parsing bugs were fixed.
@@ -133,7 +133,45 @@ npm run build
 
 `npm run build` writes `dist/` with `tsc`. The programs under `spec/qasm/generic` are the upstream qasm-ts conformance corpus. Several of them, including `alignment.qasm`, come from the [OpenQASM project](https://github.com/openqasm/openqasm) (Apache-2.0).
 
-Performance comparisons against ANTLR and Rust parsers live in the upstream [benchmarking repo](https://github.com/seankim658/qasm-parser-testing).
+## Performance
+
+Parse time for the 11 OpenQASM 3 programs from the [qasm-ts benchmark](https://github.com/seankim658/qasm-parser-testing). Milliseconds, in process, on an Apple M4, October 2026.
+
+| File | Bytes | ANTLR | openqasm3_parser | qasm-ts 2.1.2 | openquantum-parser |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| alignment.qasm | 314 | 0.759 | 0.011 | 0.017 | 0.022 |
+| qft.qasm | 320 | 1.534 | 0.023 | 0.028 | 0.022 |
+| inverseqft2.qasm | 431 | 1.999 | 0.026 | 0.039 | 0.035 |
+| qec.qasm | 447 | 1.832 | 0.024 | 0.036 | 0.029 |
+| dd.qasm | 554 | 1.449 | 0.017 | 0.038 | 0.040 |
+| inverseqft1.qasm | 674 | 3.632 | 0.045 | 0.084 | 0.064 |
+| varteleport.qasm | 707 | 2.354 | 0.028 | 0.045 | 0.038 |
+| adder.qasm | 803 | 2.845 | 0.038 | 0.083 | 0.072 |
+| ipe.qasm | 941 | 1.619 | 0.018 | 0.034 | 0.038 |
+| scqec.qasm | 2822 | 7.092 | 0.072 | 0.189 | 0.119 |
+| msd.qasm | 4660 | 13.363 | 0.126 | 0.705 | 0.208 |
+| All 11, one pass |  | 38.5 | 0.43 | 1.30 | 0.69 |
+
+*__Note:__ [Qiskit/openqasm3_parser](https://github.com/Qiskit/openqasm3_parser) (`e168656` 0.7.0) does not support all documented syntax such as measure `->` therefore tests had to be modified to pass.*
+
+## Features
+
+| | ANTLR | openqasm3_parser | qasm-ts 2.1.2 | openquantum-parser |
+| --- | --- | --- | --- | --- |
+| JavaScript | no | no | yes | yes |
+| OpenQASM 2.0 | partial | no | partial | yes |
+| OpenQASM 3 | yes | partial | yes | yes |
+| Line and column on each node | yes | yes | no | yes |
+| Error gives line and column | no | yes | line only | yes |
+| Hardware qubits (`$0`) | yes | yes | delay only | yes |
+| Anonymous `{ ... }` block | yes | yes | no | yes |
+| `pragma` | yes | `#pragma` only | no | yes |
+| Annotations | yes | yes | no | yes |
+| `defcal` | yes | name only | no | yes |
+| Version read from the header | yes | no | no | yes |
+| Semantic analysis | no | yes | no | no |
+
+*__Note:__ ANTLR and qasm-ts 2.1.2 parse some OpenQASM 2, including `qreg` and `if`, and both reject `opaque`. qasm-ts needs the version passed in.*
 
 ## References
 

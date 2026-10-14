@@ -11,6 +11,21 @@ import { Expression } from "../src/qasm2/ast";
 
 const genericTests = "spec/tokens/generic";
 
+function withoutLocations(node: any): any {
+  if (Array.isArray(node)) {
+    return node.map(withoutLocations);
+  }
+  if (node && typeof node === "object") {
+    const copy = Object.create(Object.getPrototypeOf(node));
+    for (const key of Object.keys(node)) {
+      if (key === "line" || key === "column") continue;
+      copy[key] = withoutLocations(node[key]);
+    }
+    return copy;
+  }
+  return node;
+}
+
 function normalizeV2Ast(node: any): any {
   if (Array.isArray(node)) {
     return node.map(normalizeV2Ast);
@@ -85,7 +100,7 @@ describe("parser", () => {
                 if (version === "v2.0") {
                   expect(normalizeV2Ast(out[i])).toEqual(normalizeV2Ast(ast[i]));
                 } else {
-                  expect(out[i]).toEqual(ast[i]);
+                  expect(withoutLocations(out[i])).toEqual(withoutLocations(ast[i]));
                 }
               }
             } else {
