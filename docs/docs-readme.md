@@ -151,6 +151,10 @@ Understand the Parser:
 
 Navigate using the sidebar or search functionality to find specific functions and classes.
 
+## Version 1.1.0
+
+A statement-level name is a gate call based on the syntax around it. The parser does not keep a gate allowlist. Statement lists are built in linear time.
+
 ## Version 1.0.0
 
 OpenQASM 2.0 and 3.x parsing comes from qasm-ts. Since the fork, this package returns `{ ast, version }`, accepts OpenQASM 3.1 on the version 3 parser, and parses hardware qubits, `pragma`, annotations, and calibration grammar. AST nodes carry line and column.

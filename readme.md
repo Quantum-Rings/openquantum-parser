@@ -2,7 +2,7 @@
 
 OpenQASM 2.0 and 3.x parser in TypeScript, maintained by Quantum Rings.
 
-openquantum-parser is a compiler frontend. It lexes and parses OpenQASM into an abstract syntax tree that captures program structure, including control flow and data flow. Version 1.0.0 is for people building checkers, compilers, and hardware submission tools.
+openquantum-parser is a compiler frontend. It lexes and parses OpenQASM into an abstract syntax tree that captures program structure, including control flow and data flow. Version 1.1.0 is for people building checkers, compilers, and hardware submission tools.
 
 Language documentation is at [openqasm.com](https://openqasm.com).
 
@@ -21,6 +21,8 @@ Changes since that commit:
 - Hardware qubits, `pragma` (including a bare `pragma`), annotations, and calibration grammar (`defcal`).
 - AST nodes record line and column.
 - The test corpus was expanded against the OpenQASM 3.0 examples, and OpenQASM 2 parsing bugs were fixed.
+- A statement-level name is parsed as a gate call from the syntax around it. The parser does not keep a gate allowlist, so a name it has not seen is still a call. Whether that gate is legal is left to the compiler.
+- Statement lists are appended in place. Parse time grows with the length of the program, including inside an OpenQASM 2 gate body.
 
 ## Usage
 
