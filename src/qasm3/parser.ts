@@ -261,10 +261,12 @@ class Parser {
    * @return The abstract syntax tree.
    */
   parse(): Array<AstNode> {
-    let ast: Array<AstNode> = [];
+    const ast: Array<AstNode> = [];
     while (this.index < this.tokens.length) {
       const [nodes, consumed] = this.parseNode(this.index);
-      ast = ast.concat(nodes ? nodes : []);
+      if (nodes) {
+        for (const node of nodes) ast.push(node);
+      }
       this.index += consumed;
     }
     return ast;

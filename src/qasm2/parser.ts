@@ -119,11 +119,13 @@ class Parser {
    * @return The abstract syntax tree.
    */
   parse(): Array<AstNode> {
-    let ast: Array<AstNode> = [];
+    const ast: Array<AstNode> = [];
     let i = 0;
     while (i < this.tokens.length) {
       const nodes = this.parseNode(i);
-      ast = ast.concat(nodes ? nodes : []);
+      if (nodes) {
+        for (const node of nodes) ast.push(node);
+      }
       while (i < this.tokens.length && !this.matchNext(i, [Token.Semicolon])) {
         if (this.matchNext(i, [Token.LCParen])) {
           while (i < this.tokens.length && !this.matchNext(i, [Token.RCParen])) {
@@ -445,14 +447,16 @@ class Parser {
    * @return A parsed subroutine.
    */
   sub(offset: number): Array<AstNode> {
-    let ast: Array<AstNode> = [];
+    const ast: Array<AstNode> = [];
     let i = offset;
     if (this.matchNext(i, [Token.LCParen])) {
       i++;
     }
     while (i < this.tokens.length - 1 && this.tokens[i][0] != Token.RCParen) {
       const nodes = this.parseNode(i);
-      ast = ast.concat(nodes ? nodes : []);
+      if (nodes) {
+        for (const node of nodes) ast.push(node);
+      }
       while (
         !this.matchNext(i, [Token.Semicolon]) &&
         !this.matchNext(i, [Token.RCParen])
