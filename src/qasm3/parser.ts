@@ -192,12 +192,15 @@ function tokenToString(token: any): string {
  * OpenQASM 3.0 Recursive Descent Parser
  *
  * Implements a comprehensive parser for the OpenQASM 3.0 language specification.
- * The parser uses recursive descent parsing with appropriate error recovery and
- * maintains symbol tables for gates, subroutines, and variables.
+ * The parser uses recursive descent parsing with appropriate error recovery.
+ * It does not know the gates a backend or an include defines. Includes stay
+ * in the AST. A gate call is recognized by its shape: a name, optional
+ * parameters, and a qubit operand. A parenthesized call with no operand is a
+ * subroutine only when this file already declared that name with def or extern.
  *
  * Parser state includes:
  * - Token stream and current position
- * - Symbol tables for gates, subroutines, arrays, aliases
+ * - Names of subroutines, arrays, and aliases declared in this file
  * - Machine-specific defaults (float width, int size)
  *
  * @example Creating and using the parser
@@ -215,16 +218,7 @@ class Parser {
   /** The tokens to parse. */
   tokens: Array<[Token, (number | string) | undefined, number, number, string]>;
 
-  /** The built in gates. */
-  gates: Set<string>;
-
-  /** Custom defined gates. */
-  customGates: Set<string>;
-
-  /** Standard library gates. */
-  standardGates: Set<string>;
-
-  /** Custom defined subroutines. */
+  /** Subroutines and externs declared earlier in this file. */
   subroutines: Set<string>;
 
   /** User defined arrays. */
@@ -254,59 +248,12 @@ class Parser {
     machineIntSize?: number,
   ) {
     this.tokens = tokens;
-    this.gates = new Set(["U", "u", "gphase", "cnot"]);
-    this.standardGates = new Set();
-    this.customGates = new Set();
     this.subroutines = new Set();
     this.customArrays = new Set();
     this.aliases = new Map();
     this.index = 0;
     this.machineFloatWidth = defaultFloatWidth ? defaultFloatWidth : 64;
     this.machineIntSize = machineIntSize ? machineIntSize : 32;
-
-    this.stdGates();
-  }
-
-  /**
-   * Loads the standard library gates.
-   */
-  stdGates() {
-    const gates = [
-      "p",
-      "x",
-      "y",
-      "z",
-      "h",
-      "s",
-      "sdg",
-      "t",
-      "tdg",
-      "sx",
-      "rx",
-      "ry",
-      "rz",
-      "cx",
-      "cy",
-      "cz",
-      "cp",
-      "crx",
-      "cry",
-      "crz",
-      "ch",
-      "swap",
-      "ccx",
-      "cswap",
-      "cu",
-      // OpenQASM 2 backwards compatibility gates
-      "CX",
-      "phase",
-      "cphase",
-      "id",
-      "u1",
-      "u2",
-      "u3",
-    ];
-    gates.forEach(this.standardGates.add, this.standardGates);
   }
 
   /**
@@ -406,9 +353,6 @@ class Parser {
       }
       case Token.Include: {
         const [includeNode, consumed] = this.include(offset);
-        if (includeNode.filename === '"stdgates.inc"') {
-          this.stdGates();
-        }
         result = [[includeNode], consumed];
         break;
       }
@@ -495,7 +439,6 @@ class Parser {
       }
       case Token.Gate: {
         const [gateNode, gateConsumed] = this.quantumGateDefinition(offset);
-        this.customGates.add(gateNode.name.name);
         result = [[gateNode], gateConsumed];
         break;
       }
@@ -729,28 +672,28 @@ class Parser {
         result = [[blockNode], blockConsumed];
         break;
       }
-      case Token.Id:
-        if (token[1] === "double") {
+      case Token.Id: {
+        const name = token[1] as string;
+        if (name === "double") {
           const [classicalNode, consumed] = this.classicalDeclaration(offset, false);
           result = [[classicalNode], consumed];
-        } else if (this.isQuantumGateCall(offset)) {
-          const [gateCallNode, gateCallConsumed] = this.quantumGateCall(offset);
-          result = [[gateCallNode], gateCallConsumed];
-        } else if (this.isSubroutineCall(offset)) {
-          const [subroutineCallNode, subroutineCallConsumed] =
-            this.subroutineCall(offset);
-          result = [[subroutineCallNode], subroutineCallConsumed];
         } else if (this.isMeasurement(offset)) {
           const [measureNode, measureConsumed] = this.measureStatement(offset);
           result = [[measureNode], measureConsumed];
-        } else if (
-          this.matchNext(offset + 1, [Token.EqualsAssmt]) ||
-          this.matchNext(offset + 1, [Token.CompoundArithmeticOp]) ||
-          this.matchNext(offset + 1, [Token.CompoundBinaryOp]) ||
-          this.isAssignment(offset)
-        ) {
+        } else if (this.isAssignment(offset)) {
           const [assignmentNode, consumed] = this.assignment(offset);
           result = [[assignmentNode], consumed];
+        } else if (this.subroutines.has(name) && !this.hasGateOperand(offset)) {
+          const [subroutineCallNode, subroutineCallConsumed] =
+            this.subroutineCall(offset);
+          result = [[subroutineCallNode], subroutineCallConsumed];
+        } else if (this.hasGateOperand(offset) || this.hasParameterList(offset)) {
+          // A qubit after the name is a gate call, whatever the name is.
+          // name(args); with no qubit is also a call. gphase has this shape,
+          // and so does an unknown native op. The precompiler decides whether
+          // that name is a gate.
+          const [gateCallNode, gateCallConsumed] = this.quantumGateCall(offset);
+          result = [[gateCallNode], gateCallConsumed];
         } else if (allowVariables) {
           const [expr, consumed] = this.binaryExpression(offset);
           if (this.matchNext(offset + consumed, [Token.Semicolon])) {
@@ -765,6 +708,7 @@ class Parser {
           }
         }
         break;
+      }
       case Token.At: {
         // Handled in the preamble loop of parseNode
         break;
@@ -3543,42 +3487,42 @@ class Parser {
     return token === Token.EqualsAssmt || token === Token.CompoundArithmeticOp || token === Token.CompoundBinaryOp;
   }
 
-  /** Checks whether an identifier is a quantum gate call. */
-  private isQuantumGateCall(
-    offset: number,
-  ): boolean {
-    const gateName = this.tokens[offset][1] as string;
-    if (
-      this.gates.has(gateName) ||
-      this.standardGates.has(gateName) ||
-      this.customGates.has(gateName)
-    ) {
-      return true;
-    }
-    const nextToken = this.tokens[offset + 1]?.[0];
-    if (nextToken === Token.Id || nextToken === Token.HardwareQubit || nextToken === Token.Dollar) {
-      return true;
-    }
-    if (nextToken === Token.LParen) {
-      let i = 2;
-      let parenCount = 1;
-      while (offset + i < this.tokens.length && parenCount > 0) {
-        if (this.tokens[offset + i][0] === Token.LParen) parenCount++;
-        else if (this.tokens[offset + i][0] === Token.RParen) parenCount--;
-        i++;
-      }
-      const afterParen = this.tokens[offset + i]?.[0];
-      if (afterParen === Token.Id || afterParen === Token.HardwareQubit || afterParen === Token.Dollar) {
-        return true;
-      }
-    }
+  /**
+   * A gate call is `name qubit` or `name(params) qubit`. The name itself is
+   * not consulted: includes and native ops are not known here.
+   */
+  private hasGateOperand(offset: number): boolean {
+    const after = this.indexAfterCallName(offset);
+    const kind = this.tokens[after]?.[0];
+    return (
+      kind === Token.Id ||
+      kind === Token.HardwareQubit ||
+      kind === Token.Dollar
+    );
+  }
 
-    // Fallback: If it's not a subroutine and not an assignment, assume it's a gate call
-    // This allows unknown native gates to be successfully parsed as gate calls inside boxes
-    if (!this.subroutines.has(gateName) && !this.isAssignment(offset)) {
-      return true;
+  /** `name(params)` with no qubit operand yet. */
+  private hasParameterList(offset: number): boolean {
+    return this.tokens[offset + 1]?.[0] === Token.LParen;
+  }
+
+  /** Token index just after the name and its optional parenthesized arguments. */
+  private indexAfterCallName(offset: number): number {
+    let i = offset + 1;
+    if (this.tokens[i]?.[0] !== Token.LParen) return i;
+    let depth = 0;
+    while (i < this.tokens.length) {
+      const kind = this.tokens[i][0];
+      if (kind === Token.LParen) depth++;
+      else if (kind === Token.RParen) {
+        depth--;
+        i++;
+        if (depth === 0) return i;
+        continue;
+      }
+      i++;
     }
-    return false;
+    return i;
   }
 
   /** Checks whether an identifier is a subroutine call. */
@@ -3621,16 +3565,6 @@ class Parser {
       return true;
     }
     return false;
-  }
-
-  /** TODO : update this
-   * Validates whether a register or gate identifier.
-   * @param identifier - The identifier to validate.
-   * @return Boolean indicating successful validation or not.
-   */
-  private validateIdentifier(identifier: string): boolean {
-    const firstChar = identifier[0];
-    return /^[a-z]$/.test(firstChar);
   }
 }
 

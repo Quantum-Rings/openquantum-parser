@@ -175,7 +175,6 @@ rz(0.1) q[0];`;
 qreg q[1];
 opaque my_gate q;
 my_gate q[0];`;
-    // Should not throw BadGateError
     const result = parseString(qasm, 2);
     expect(result.ast.length).toBe(4);
   });

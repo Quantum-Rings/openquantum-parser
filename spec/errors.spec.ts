@@ -60,11 +60,55 @@ cx 1;`;
       expect(() => parseString(code, 2)).toThrowError(BadArgumentError);
     });
 
-    it("should throw BadGateError", () => {
+    it("should parse a gate declaration with a non-qelib1 name", () => {
+      const code = `OPENQASM 2.0;
+qreg q[1];
+gate X a { x a; }`;
+      const result = parseString(code, 2);
+      const gate = result.ast.find((node) => node.constructor.name === "Gate") as { name: string };
+      expect(gate.name).toBe("X");
+    });
+
+    it("should throw BadGateError when a gate declaration has no name", () => {
+      const code = `OPENQASM 2.0;
+gate;`;
+      expect(() => parseString(code, 2)).toThrowError(BadGateError, /expected gate name/);
+    });
+
+    it("should throw BadGateError when a gate declaration has no qubit", () => {
+      const code = `OPENQASM 2.0;
+gate foo { x foo; }`;
+      expect(() => parseString(code, 2)).toThrowError(BadGateError, /expected qubit argument/);
+    });
+
+    it("should throw BadGateError when a gate qubit list misses a comma", () => {
+      const code = `OPENQASM 2.0;
+gate foo a b { x a; }`;
+      expect(() => parseString(code, 2)).toThrowError(
+        BadGateError,
+        /expected comma or opening brace for gate body/,
+      );
+    });
+
+    it("should throw BadGateError when an opaque declaration has no qubit", () => {
+      const code = `OPENQASM 2.0;
+opaque foo;`;
+      expect(() => parseString(code, 2)).toThrowError(BadGateError, /expected qubit argument/);
+    });
+
+    it("should throw MissingSemicolonError when an opaque declaration has no semicolon", () => {
+      const code = `OPENQASM 2.0;
+opaque my_gate q`;
+      expect(() => parseString(code, 2)).toThrowError(MissingSemicolonError);
+    });
+
+    it("should parse an unknown gate name", () => {
       const code = `OPENQASM 2.0;
 qreg q[1];
 unknown q[0];`;
-      expect(() => parseString(code, 2)).toThrowError(BadGateError);
+      const result = parseString(code, 2);
+      const call = result.ast.find((node) => node.constructor.name === "ApplyGate") as { name: string };
+      expect(call.name).toBe("unknown");
     });
 
     it("should throw BadMeasurementError", () => {

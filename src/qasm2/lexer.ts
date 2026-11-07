@@ -344,6 +344,17 @@ class Lexer {
   };
 
   /**
+   * True when the character at `index` can continue an identifier.
+   * Keyword spelling matches must stop at a word boundary, or names such as
+   * `gate_Oracle` and `qreg_extra` are split into the keyword plus a leftover.
+   */
+  continuesIdentifier = (index: number): boolean => {
+    if (index < 0 || index >= this.input.length) return false;
+    const next = this.input[index];
+    return isAlpha(next) || next === "_" || isUnicode(next);
+  };
+
+  /**
    * Reads an identifier.
    * @return The identifier as a string.
    */
@@ -530,7 +541,8 @@ class Lexer {
         if (
           this.input[this.cursor] == "a" &&
           this.input[this.cursor + 1] == "t" &&
-          this.input[this.cursor + 2] == "e"
+          this.input[this.cursor + 2] == "e" &&
+          !this.continuesIdentifier(this.cursor + 3)
         ) {
           this.readChar(3);
           result = [Token.Gate];
@@ -543,7 +555,8 @@ class Lexer {
         if (
           this.input[this.cursor] == "r" &&
           this.input[this.cursor + 1] == "e" &&
-          this.input[this.cursor + 2] == "g"
+          this.input[this.cursor + 2] == "g" &&
+          !this.continuesIdentifier(this.cursor + 3)
         ) {
           this.readChar(3);
           result = [Token.QReg];
@@ -556,7 +569,8 @@ class Lexer {
         if (
           this.input[this.cursor] == "r" &&
           this.input[this.cursor + 1] == "e" &&
-          this.input[this.cursor + 2] == "g"
+          this.input[this.cursor + 2] == "g" &&
+          !this.continuesIdentifier(this.cursor + 3)
         ) {
           this.readChar(3);
           result = [Token.CReg];
@@ -572,7 +586,8 @@ class Lexer {
           this.input[this.cursor + 2] == "r" &&
           this.input[this.cursor + 3] == "i" &&
           this.input[this.cursor + 4] == "e" &&
-          this.input[this.cursor + 5] == "r"
+          this.input[this.cursor + 5] == "r" &&
+          !this.continuesIdentifier(this.cursor + 6)
         ) {
           this.readChar(6);
           result = [Token.Barrier];
@@ -588,7 +603,8 @@ class Lexer {
           this.input[this.cursor + 2] == "s" &&
           this.input[this.cursor + 3] == "u" &&
           this.input[this.cursor + 4] == "r" &&
-          this.input[this.cursor + 5] == "e"
+          this.input[this.cursor + 5] == "e" &&
+          !this.continuesIdentifier(this.cursor + 6)
         ) {
           this.readChar(6);
           result = [Token.Measure];
@@ -666,7 +682,8 @@ class Lexer {
           this.input[this.cursor + 2] == "l" &&
           this.input[this.cursor + 3] == "u" &&
           this.input[this.cursor + 4] == "d" &&
-          this.input[this.cursor + 5] == "e"
+          this.input[this.cursor + 5] == "e" &&
+          !this.continuesIdentifier(this.cursor + 6)
         ) {
           this.readChar(6);
           result = [Token.Include];
@@ -681,7 +698,8 @@ class Lexer {
           this.input[this.cursor + 1] == "a" &&
           this.input[this.cursor + 2] == "q" &&
           this.input[this.cursor + 3] == "u" &&
-          this.input[this.cursor + 4] == "e"
+          this.input[this.cursor + 4] == "e" &&
+          !this.continuesIdentifier(this.cursor + 5)
         ) {
           this.readChar(5);
           result = [Token.Opaque];

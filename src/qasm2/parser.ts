@@ -14,14 +14,15 @@
  * OpenQASM 2.0 parsing capabilities:
  * - **Register declarations**: qreg and creg with size specifications
  * - **Gate definitions**: Custom gate definitions with parameters and bodies
- * - **Gate applications**: Built-in and custom gate applications
+ * - **Gate applications**: Any statement-level identifier is a gate call
  * - **Measurements**: Quantum measurements with classical result storage
  * - **Basic conditionals**: Simple if statements based on classical register values
  * - **Arithmetic expressions**: Parameter expressions for gate operations
  * - **Opaque gates**: External gate declarations
  *
- * The parser maintains a list of known gates and validates gate applications
- * against declared gates and built-in operations.
+ * Names, parameter counts, and qubit counts are not checked here. A later
+ * precompiler accepts a call when the name is a builtin, a declaration in the
+ * file, or a backend operation, and when the arity matches that signature.
  *
  * @module
  *
@@ -49,6 +50,7 @@ import {
   BadIncludeError,
   UnsupportedOpenQASMVersionError,
   MissingBraceError,
+  MissingSemicolonError,
 } from "../errors";
 import {
   AstNode,
@@ -104,64 +106,12 @@ class Parser {
   /** The tokens to parse. */
   tokens: Array<[Token, (number | string) | undefined, number, number, string]>;
 
-  /** The allowed gates. */
-  gates: Array<string>;
-
   /**
    * Creates a parser.
    * @param tokens - Tokens to parse.
    */
   constructor(tokens: Array<[Token, (number | string) | undefined, number, number, string]>) {
     this.tokens = tokens;
-    this.gates = [
-      "x",
-      "y",
-      "z",
-      "u1",
-      "u2",
-      "u3",
-      "s",
-      "sdg",
-      "h",
-      "tdg",
-      "cx",
-      "cy",
-      "cz",
-      "t",
-      "ccx",
-      "reset",
-      "cu1",
-      "ccy",
-      "ccz",
-      "rx",
-      "ry",
-      "rz",
-      "ch",
-      "crz",
-      "cu3",
-      "crx",
-      "cry",
-      "swap",
-      "cswap",
-      "id",
-      // Qiskit legacy qelib1.inc, also shipped by QASMBench.
-      "u0",
-      "rxx",
-      "rzz",
-      "rccx",
-      "rc3x",
-      "c3x",
-      "c3sqrtx",
-      "c4x",
-      // Qiskit legacy qelib1.inc only. Absent from the QASMBench header.
-      "u",
-      "p",
-      "sx",
-      "sxdg",
-      "cp",
-      "csx",
-      "cu",
-    ];
   }
 
   /**
@@ -224,13 +174,15 @@ class Parser {
           !(token[1].toString().indexOf("QASM") != -1) &&
           !(token[1].toString().indexOf("include") != -1)
         ) {
-          if (this.gates.includes(token[1].toString())) {
-            return this.application(offset, token[1].toString(), line, column);
-          } else if (allowVariables) {
+          // Parameter expressions are not gate calls. A formal named `p` or `x`
+          // must stay a variable even though those names are also qelib1 gates.
+          // A statement-level identifier is always a gate call, including names
+          // this parser has not seen. The precompiler rejects a name that is
+          // not a builtin, a declaration, or a backend op.
+          if (allowVariables) {
             return [new Variable(token[1].toString(), line, column)];
-          } else {
-            throw new BadGateError("Bad gate", token[2], token[3], token[4]);
           }
+          return this.application(offset, token[1].toString(), line, column);
         } else {
           return [];
         }
@@ -451,7 +403,7 @@ class Parser {
   }
 
   /**
-   * Parses an application of one of the allowed gates.
+   * Parses a gate application. The name is not checked against a built-in list.
    * @param offset - The current token index.
    * @return An AST node representing the gate application.
    */
@@ -516,19 +468,61 @@ class Parser {
   }
 
   /**
+   * Parses one parameter term: a single token, or a parenthesized group.
+   * `( exp )` is part of the OpenQASM 2 expression grammar. The group is
+   * returned as its own node so later precedence folding keeps the grouping.
+   * @param offset - The current token index.
+   * @return The term and how many tokens it consumed, including a closing paren.
+   */
+  matchParamExpr(offset: number): [AstNode, number] {
+    const token = this.tokens[offset];
+    if (!token || token[0] == Token.EndOfFile) {
+      const last = this.tokens[Math.max(0, offset - 1)] || this.tokens[0];
+      throw new BadParameterError("Bad parameter", last[2], last[3], last[4]);
+    }
+    if (token[0] == Token.LParen) {
+      let current = offset + 1;
+      const nodes: Array<AstNode> = [];
+      if (this.matchNext(current, [Token.RParen]) || current >= this.tokens.length) {
+        throw new BadParameterError("Bad parameter", token[2], token[3], token[4]);
+      }
+      while (!this.matchNext(current, [Token.RParen])) {
+        if (current >= this.tokens.length || this.tokens[current][0] == Token.EndOfFile) {
+          const last = this.tokens[this.tokens.length - 1];
+          throw new BadParameterError("Bad parameter", last[2], last[3], last[4]);
+        }
+        if (this.tokens[current][0] == Token.Comma) {
+          throw new BadParameterError("Bad parameter", this.tokens[current][2], this.tokens[current][3], this.tokens[current][4]);
+        }
+        const [node, consumed] = this.matchParamExpr(current);
+        nodes.push(node);
+        current += consumed;
+      }
+      const expr =
+        nodes.length === 1
+          ? nodes[0]
+          : new Expression(nodes, token[2], token[3]);
+      return [expr, current - offset + 1];
+    }
+    if (notParam(token[0])) {
+      throw new BadParameterError("Bad parameter", token[2], token[3], token[4]);
+    }
+    const parsed = this.parseNode(offset, true);
+    const node = Array.isArray(parsed) ? parsed[0] : parsed;
+    if (!node) {
+      throw new BadParameterError("Bad parameter", token[2], token[3], token[4]);
+    }
+    return [node, 1];
+  }
+
+  /**
    * Parses a parameter value.
    * @param offset - The current token index.
    * @return An AST node representing the parameter value.
    */
   matchParam(offset: number): any {
-    let param: any;
-    if (!notParam(this.tokens[offset][0])) {
-      // parseNode returns an array, and we return the array to maintain structure
-      param = this.parseNode(offset, true);
-    } else {
-      throw new BadParameterError("Bad parameter", this.tokens[offset][2], this.tokens[offset][3], this.tokens[offset][4]);
-    }
-    return param;
+    const [param] = this.matchParamExpr(offset);
+    return [param];
   }
 
   /**
@@ -548,12 +542,13 @@ class Parser {
         !this.matchNext(current, [Token.Comma]) &&
         !this.matchNext(current, [Token.RParen])
       ) {
-        if (notParam(this.tokens[current][0])) {
-          throw new BadParameterError("Bad parameter", this.tokens[current][2], this.tokens[current][3], this.tokens[current][4]);
+        if (current >= this.tokens.length || this.tokens[current][0] == Token.EndOfFile) {
+          const last = this.tokens[this.tokens.length - 1];
+          throw new BadParameterError("Bad parameter", last[2], last[3], last[4]);
         }
-        const next = this.matchParam(current);
-        exprNodes.push(next[0] || next);
-        current++;
+        const [node, consumed] = this.matchParamExpr(current);
+        exprNodes.push(node);
+        current += consumed;
       }
       if (exprNodes.length === 1) {
         args.push(exprNodes[0]);
@@ -565,12 +560,9 @@ class Parser {
       }
       current++;
     }
-    // +1 to include the closing RParen in consumed count if needed, 
-    // but the caller usually handles the closing token. 
-    // Based on application() logic: tokens = tokens.slice(count + (commas - 1) + 2);
-    // It seems application expects to skip the whole list including parens.
-    // Here we return consumed count relative to start of params (after LParen).
-    return [args, current - offset + 1]; 
+    // Consumed count includes the closing paren. Callers add one for the
+    // opening paren that sits before `offset`.
+    return [args, current - offset + 1];
   }
 
   /**
@@ -708,11 +700,8 @@ class Parser {
     let current = offset;
     if (this.matchNext(current, [Token.Id])) {
       name = this.tokens[current][1].toString();
-      if (!this.validateIdentifier(name)) {
-        throw new BadGateError("Bad gate", this.tokens[current][2], this.tokens[current][3], this.tokens[current][4]);
-      }
     } else {
-      throw new BadGateError("Bad gate", this.tokens[current][2], this.tokens[current][3], this.tokens[current][4]);
+      this.badGate(current, "expected gate name");
     }
     current++;
     if (this.matchNext(current, [Token.LParen])) {
@@ -726,10 +715,15 @@ class Parser {
         current += consumed + 1; // +1 for RParen
       }
     }
+    if (!this.matchNext(current, [Token.Id])) {
+      this.badGate(current, "expected qubit argument");
+    }
     const [registers, consumedRegs] = this.matchIdList(current);
     current += consumedRegs;
+    if (!this.matchNext(current, [Token.LCParen])) {
+      this.badGate(current, "expected comma or opening brace for gate body");
+    }
     const applications: Array<AstNode> = this.sub(current);
-    this.gates.push(name);
     return new Gate(name, registers, params, applications, line, column);
   }
 
@@ -747,7 +741,7 @@ class Parser {
       name = this.tokens[current][1].toString();
       current++;
     } else {
-      throw new BadGateError("Bad gate", this.tokens[current][2], this.tokens[current][3], this.tokens[current][4]);
+      this.badGate(current, "expected gate name");
     }
 
     if (this.matchNext(current, [Token.LParen])) {
@@ -761,20 +755,53 @@ class Parser {
       }
     }
 
+    if (!this.matchNext(current, [Token.Id])) {
+      this.badGate(current, "expected qubit argument");
+    }
+
+    // The lexer skips its semicolon check when a line contains the text "gate",
+    // so `opaque my_gate q` reaches this method. End of file is a missing
+    // semicolon, not a bad argument.
+    let hasSemicolon = false;
+    for (let k = current; k < this.tokens.length; k++) {
+      if (this.tokens[k][0] == Token.Semicolon) {
+        hasSemicolon = true;
+        break;
+      }
+      if (this.tokens[k][0] == Token.EndOfFile) {
+        break;
+      }
+    }
+    if (!hasSemicolon) {
+      const token = this.tokens[Math.min(current, this.tokens.length - 1)];
+      throw new MissingSemicolonError("Missing semicolon", token[2], token[3], token[4]);
+    }
+
     const [args, consumedArgs] = this.matchArgList(current);
     qubits = args;
     current += consumedArgs;
 
     if (!this.matchNext(current, [Token.Semicolon])) {
-      throw new BadGateError("Bad gate", this.tokens[current][2], this.tokens[current][3], this.tokens[current][4]);
+      const token = this.tokens[Math.min(current, this.tokens.length - 1)];
+      throw new MissingSemicolonError("Missing semicolon", token[2], token[3], token[4]);
     }
 
-    this.gates.push(name);
     return new Opaque(name, qubits, params, line, column);
   }
 
   /**
-   * Validates whether a register or gate identifier.
+   * Throws a gate-syntax error at the given token. Same messages as the QASM 3 parser.
+   * @param index - Token index to report.
+   * @param message - Error message.
+   */
+  private badGate(index: number, message: string): never {
+    const token = this.tokens[Math.min(index, this.tokens.length - 1)];
+    throw new BadGateError(message, token[2], token[3], token[4]);
+  }
+
+  /**
+   * Validates a qreg or creg name. OpenQASM 2 identifiers start with a lowercase letter.
+   * Gate names are checked later, by the precompiler.
    * @param identifier - The identifier to validate.
    * @return Boolean indicating successful validation or not.
    */
