@@ -1,3 +1,5 @@
+**This project has moved to [openquantum-oss/oq-parse](https://github.com/openquantum-oss/oq-parse).**
+
 # openquantum-parser
 
 OpenQASM 2.0 and 3.x parser in TypeScript, maintained by Quantum Rings.
